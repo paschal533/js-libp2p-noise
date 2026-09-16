@@ -10,8 +10,8 @@
  *
  * The dist/ directory must exist (run `pnpm build` first).
  *
- * Protocol: Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256
- * Protocol ID: /noise-mlkem768-hfs/0.1.0
+ * Protocol: Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256
+ * Protocol ID: /noise-mlkem768-hfs/0.2.0
  */
 
 import net from 'net'

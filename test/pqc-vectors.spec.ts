@@ -1,5 +1,5 @@
 /**
- * Test vector verification for Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256.
+ * Test vector verification for Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256.
  *
  * Loads committed vectors from test/fixtures/pqc-test-vectors.json and
  * re-runs the handshake with the same seeded keys, asserting exact equality

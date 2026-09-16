@@ -1,15 +1,15 @@
 # Noise HFS Implementation Spec
 
-**Protocol:** `Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256`  
-**libp2p protocol ID:** `/noise-pq/1.0.0`  
+**Protocol:** `Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256`  
+**libp2p protocol ID:** `/noise-mlkem768-hfs/0.2.0`  
 **Status:** Prototype / research implementation  
-**Based on:** [Noise HFS spec](https://github.com/noiseprotocol/noise_hfs_spec), PQNoise (ePrint 2022/539), [draft-connolly-cfrg-xwing-kem](https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-06.txt)
+**Based on:** [Noise HFS spec](https://github.com/noiseprotocol/noise_hfs_spec), PQNoise (ePrint 2022/539), Noise rev 34 §8.2 + FIPS 203
 
 ---
 
 ## 1. Overview
 
-This document describes the `Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256` handshake as implemented in `@chainsafe/libp2p-noise`. The handshake is a post-quantum hybrid of the classical Noise XX pattern that adds an ephemeral KEM step (the "HFS" tokens `e1` and `ekem1`) alongside the existing ECDH operations.
+This document describes the `Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256` handshake as implemented in `@chainsafe/libp2p-noise`. The handshake is a post-quantum hybrid of the classical Noise XX pattern that adds an ephemeral KEM step (the "HFS" tokens `e1` and `ekem1`) alongside the existing ECDH operations.
 
 The result is a protocol where forward secrecy is secure if **either** X25519 **or** ML-KEM-768 is unbroken. Classical security is preserved; quantum-safe forward secrecy is added on top.
 
@@ -35,7 +35,7 @@ An earlier revision of this implementation used X-Wing (ML-KEM-768 combined with
 The XXhfs pattern adds two tokens to the classical XX pattern:
 
 ```
-Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256:
+Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256:
   <- s
   ...
   -> e, e1
@@ -44,6 +44,8 @@ Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256:
 ```
 
 The `e1` token carries the initiator's KEM ephemeral public key. The `ekem1` token carries the responder's KEM encapsulation (ciphertext encrypted under the `ee`-derived key), and mixes the resulting KEM shared secret into the chaining key.
+
+Earlier drafts used `ML-KEM-768`, which Noise §8.2 does not permit (algorithm names are alphanumeric plus `/`). Because the name is hashed into `h`, the rename is wire-incompatible, and the protocol id moved to 0.2.0 so mismatched peers fail at negotiation.
 
 ---
 
@@ -244,7 +246,7 @@ Deterministic test vectors are in `test/fixtures/pqc-test-vectors.json`. They we
 
 ```json
 {
-  "protocol": "Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256",
+  "protocol": "Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256",
   "vectors": [
     {
       "vector_index": 1,
@@ -327,7 +329,7 @@ const node = await createLibp2p({
 
 A compatible implementation in another language must:
 
-1. Use the same protocol name exactly: `Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256`
+1. Use the same protocol name exactly: `Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256`
 2. Use raw ML-KEM-768 (FIPS 203) as the KEM
 3. Apply `encryptAndHash(cipherText)` BEFORE `mixKey(sharedSecret)` in the ekem1 token
 4. Read e1 as 1184 bytes in Message A (no AEAD tag at that stage)

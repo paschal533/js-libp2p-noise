@@ -1,5 +1,5 @@
 /**
- * Node.js KEM backend for Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256.
+ * Node.js KEM backend for Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256.
  *
  * This file follows the same dual-backend pattern as PR #3432 (ML-DSA identity):
  *   src/crypto/pqc.ts      - browser / universal fallback (noble, pure JS)

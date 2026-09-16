@@ -77,7 +77,7 @@ describe('XXhfsHandshakeState', () => {
     })
 
     it('exposes correct protocol name constant', () => {
-      expect(NOISE_HFS_PROTOCOL_NAME).to.equal('Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256')
+      expect(NOISE_HFS_PROTOCOL_NAME).to.equal('Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256')
     })
   })
 

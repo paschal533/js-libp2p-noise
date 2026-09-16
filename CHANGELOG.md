@@ -11,15 +11,15 @@ This adds a second connection encrypter alongside the existing classical `noise(
 | Export | Kind | Description |
 |--------|------|-------------|
 | `noiseHFS(init?)` | function | Factory for the XXhfs connection encrypter. Drop-in replacement for `noise()` in `connectionEncrypters`. |
-| `NoiseHFS` | class | The `ConnectionEncrypter` implementation for `/noise-pq/1.0.0`. |
+| `NoiseHFS` | class | The `ConnectionEncrypter` implementation for `/noise-mlkem768-hfs/0.2.0`. |
 | `NoiseHFSInit` | type | Init options for `noiseHFS()`: `staticNoiseKey`, `kemBackend`, `extensions`, `crypto`, `prologueBytes`. |
-| `pqcKem` | object | Default X-Wing KEM backend (ML-KEM-768 + X25519) via `@noble/post-quantum`. |
+| `pqcKem` | object | Default ML-KEM-768 (FIPS 203) KEM backend (ML-KEM-768 + X25519) via `@noble/post-quantum`. |
 | `pqcCrypto` | object | Combined `ICryptoInterface` + `IKem` (pureJsCrypto + pqcKem). |
 | `IKem` | type | Interface for KEM backends. |
 | `KemKeyPair` | type | `{ publicKey: Uint8Array, secretKey: Uint8Array }` |
 | `KemEncapsulateResult` | type | `{ cipherText: Uint8Array, sharedSecret: Uint8Array }` |
 | `XXhfsHandshakeState` | class | The raw XXhfs handshake state machine (for advanced use and testing). |
-| `NOISE_HFS_PROTOCOL_NAME` | constant | `'Noise_XXhfs_25519+XWing_ChaChaPoly_SHA256'` |
+| `NOISE_HFS_PROTOCOL_NAME` | constant | `'Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256'` |
 | `HfsHandshakeStateInit` | type | Constructor options for `XXhfsHandshakeState`. |
 | `HfsHandshakeParams` | type | Options for `performHandshakeHFSInitiator` / `performHandshakeHFSResponder`. |
 
@@ -28,7 +28,7 @@ This adds a second connection encrypter alongside the existing classical `noise(
 | File | Description |
 |------|-------------|
 | `src/kem.ts` | `IKem` interface and related types |
-| `src/crypto/pqc.ts` | X-Wing KEM implementation (pure JS via `@noble/post-quantum`) |
+| `src/crypto/pqc.ts` | ML-KEM-768 (FIPS 203) KEM implementation (pure JS via `@noble/post-quantum`) |
 | `src/crypto/pqc.node.ts` | Node.js backend slot for KEM (currently re-exports pqc.ts; native ML-KEM-768 TODO) |
 | `src/protocol-pqc.ts` | `XXhfsHandshakeState` state machine with `e1` and `ekem1` KEM tokens |
 | `src/performHandshake-hfs.ts` | Initiator and responder handshake orchestration for XXhfs |
@@ -45,9 +45,9 @@ This adds a second connection encrypter alongside the existing classical `noise(
 
 #### Protocol details
 
-- **Protocol name:** `Noise_XXhfs_25519+XWing_ChaChaPoly_SHA256`
-- **libp2p protocol ID:** `/noise-pq/1.0.0`
-- **KEM:** X-Wing = ML-KEM-768 + X25519 (IETF draft-connolly-cfrg-xwing-kem)
+- **Protocol name:** `Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256`
+- **libp2p protocol ID:** `/noise-mlkem768-hfs/0.2.0`
+- **KEM:** ML-KEM-768 (FIPS 203) = ML-KEM-768 + X25519 (IETF draft-connolly-cfrg-xwing-kem)
 - **Wire overhead vs classical XX:** +2,352 bytes per handshake (empty payload)
 - **Latency overhead vs classical XX:** approximately +35 ms (pure JS, no WASM)
 - **Quantum safety:** forward secrecy is secure if either X25519 or ML-KEM-768 is unbroken
@@ -66,7 +66,7 @@ Measured on Node.js v22.17.1, Windows 11 x64, pure JS:
 |--|------:|------:|
 | Classical XX handshake | 114 | 8.75 |
 | XXhfs handshake | 23 | 44.18 |
-| X-Wing full round-trip | 47 | 21.43 |
+| ML-KEM-768 (FIPS 203) full round-trip | 47 | 21.43 |
 
 ---
 

@@ -6,7 +6,7 @@
  *   <- e, ee, ekem1, s, es      (Message B: DH eph, DH(ee), KEM encap, static, DH(es))
  *   -> s, se                    (Message C: static, DH(se) — unchanged from XX)
  *
- * Protocol name: Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256
+ * Protocol name: Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256
  *
  * Security: handshake is secure if EITHER X25519 OR ML-KEM-768 is unbroken.
  * The classical DH operations (ee, es, se) provide current security; the KEM (ekem1)
@@ -28,7 +28,7 @@ import { AbstractHandshakeState } from './protocol.js'
 import type { HandshakeStateInit } from './protocol.js'
 import type { IKem, KemKeyPair } from './kem.js'
 
-export const NOISE_HFS_PROTOCOL_NAME = 'Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256'
+export const NOISE_HFS_PROTOCOL_NAME = 'Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256'
 
 export interface HfsHandshakeStateInit extends HandshakeStateInit {
   /** KEM backend — provides generateKemKeyPair, encapsulate, decapsulate */

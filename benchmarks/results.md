@@ -1,6 +1,6 @@
 # Benchmark results
 
-`Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256` against classical `Noise_XX_25519_ChaChaPoly_SHA256`.
+`Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256` against classical `Noise_XX_25519_ChaChaPoly_SHA256`.
 
 Node.js v22.17.1, Windows 11 x64. Medians over 5 paired passes of 30 iterations
 (`benchmarks/paired-passes.mjs`), sampling the classical and hybrid handshakes interleaved so

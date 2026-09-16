@@ -2,9 +2,9 @@
  * NoiseHFS — Post-Quantum Noise connection encrypter.
  *
  * Implements the ConnectionEncrypter interface using the XXhfs Noise pattern:
- *   Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256
+ *   Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256
  *
- * Libp2p protocol ID: /noise-mlkem768-hfs/0.1.0
+ * Libp2p protocol ID: /noise-mlkem768-hfs/0.2.0
  *
  * This is a drop-in replacement for the classical `noise()` factory. Swap
  * `noise()` for `noiseHFS()` in your libp2p config to get quantum-safe forward
@@ -76,7 +76,7 @@ export interface NoiseHFSInit {
 }
 
 export class NoiseHFS implements INoiseConnection {
-  public protocol = '/noise-mlkem768-hfs/0.1.0'
+  public protocol = '/noise-mlkem768-hfs/0.2.0'
   public crypto: ICrypto
 
   private readonly prologue: Uint8Array
