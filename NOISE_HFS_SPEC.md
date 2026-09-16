@@ -1,6 +1,6 @@
 # Noise HFS Implementation Spec
 
-**Protocol:** `Noise_XXhfs_25519+XWing_ChaChaPoly_SHA256`  
+**Protocol:** `Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256`  
 **libp2p protocol ID:** `/noise-pq/1.0.0`  
 **Status:** Prototype / research implementation  
 **Based on:** [Noise HFS spec](https://github.com/noiseprotocol/noise_hfs_spec), PQNoise (ePrint 2022/539), [draft-connolly-cfrg-xwing-kem](https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-06.txt)
@@ -9,7 +9,7 @@
 
 ## 1. Overview
 
-This document describes the `Noise_XXhfs_25519+XWing_ChaChaPoly_SHA256` handshake as implemented in `@chainsafe/libp2p-noise`. The handshake is a post-quantum hybrid of the classical Noise XX pattern that adds an ephemeral KEM step (the "HFS" tokens `e1` and `ekem1`) alongside the existing ECDH operations.
+This document describes the `Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256` handshake as implemented in `@chainsafe/libp2p-noise`. The handshake is a post-quantum hybrid of the classical Noise XX pattern that adds an ephemeral KEM step (the "HFS" tokens `e1` and `ekem1`) alongside the existing ECDH operations.
 
 The result is a protocol where forward secrecy is secure if **either** X25519 **or** ML-KEM-768 is unbroken. Classical security is preserved; quantum-safe forward secrecy is added on top.
 
@@ -19,12 +19,14 @@ The result is a protocol where forward secrecy is secure if **either** X25519 **
 
 | Role | Algorithm | Library |
 |------|-----------|---------|
-| KEM | X-Wing (ML-KEM-768 + X25519 combiner) | `@noble/post-quantum` v0.6.0 |
+| KEM | ML-KEM-768 (FIPS 203) | `@noble/post-quantum` (`ml_kem768`) |
 | DH | X25519 | `@noble/curves` (via pureJsCrypto) |
 | AEAD | ChaCha20-Poly1305 | `@noble/ciphers` |
 | Hash / HKDF | SHA-256 | Web Crypto / noble |
 
-X-Wing is defined in [draft-connolly-cfrg-xwing-kem](https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-06.txt). It combines ML-KEM-768 (FIPS 203) with X25519, using SHA3-256 as the combiner. The 32-byte combined shared secret is the output fed into `MixKey()`.
+ML-KEM-768 is specified in FIPS 203. The 32-byte shared secret it outputs is fed into `MixKey()`.
+
+An earlier revision of this implementation used X-Wing (ML-KEM-768 combined with X25519 under a SHA3-256 combiner). It was replaced by raw ML-KEM-768 so that the handshake matches the pattern proposed in `libp2p/specs#716` and implemented in `libp2p/rust-libp2p#6481`. The hybrid property is unchanged: X25519 is already present in the XX pattern, so forward secrecy still holds if either primitive survives.
 
 ---
 
@@ -33,7 +35,7 @@ X-Wing is defined in [draft-connolly-cfrg-xwing-kem](https://www.ietf.org/archiv
 The XXhfs pattern adds two tokens to the classical XX pattern:
 
 ```
-Noise_XXhfs_25519+XWing_ChaChaPoly_SHA256:
+Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256:
   <- s
   ...
   -> e, e1
@@ -51,10 +53,10 @@ The KEM is abstracted behind `IKem` in `src/kem.ts`:
 
 ```ts
 interface IKem {
-  PUBKEY_LEN: number   // X-Wing: 1216
-  CT_LEN:     number   // X-Wing: 1120
-  SS_LEN:     number   // X-Wing: 32
-  SK_LEN:     number   // X-Wing: 32 (seed, not expanded key)
+  PUBKEY_LEN: number   // ML-KEM-768: 1184
+  CT_LEN:     number   // ML-KEM-768: 1088
+  SS_LEN:     number   // ML-KEM-768: 32
+  SK_LEN:     number   // ML-KEM-768: 2400
 
   generateKemKeyPair(): KemKeyPair
   encapsulate(remotePublicKey: Uint8Array): KemEncapsulateResult
@@ -62,7 +64,7 @@ interface IKem {
 }
 ```
 
-The default implementation is `pqcKem` from `src/crypto/pqc.ts`, which uses `XWing` from `@noble/post-quantum/hybrid.js`. Any object conforming to `IKem` can be passed as `kemBackend` in `NoiseHFSInit`.
+The default implementation is `pqcKem` from `src/crypto/pqc.ts`, which uses `ml_kem768` from `@noble/post-quantum/ml-kem.js`. Any object conforming to `IKem` can be passed as `kemBackend` in `NoiseHFSInit`.
 
 ---
 
@@ -75,27 +77,27 @@ All sizes assume an empty libp2p handshake payload (no `NoiseHandshakePayload`).
 ```
 +-------------------+-----------------------+---------+
 | e.publicKey       | e1.publicKey          | payload |
-| 32 bytes          | 1216 bytes            | 0 bytes |
+| 32 bytes          | 1184 bytes            | 0 bytes |
 +-------------------+-----------------------+---------+
-                    Total: 1248 bytes
+                    Total: 1216 bytes
 ```
 
 - `e.publicKey`: X25519 ephemeral public key, sent in plaintext (no cipher key exists yet).
-- `e1.publicKey`: X-Wing ephemeral public key (1184-byte ML-KEM-768 encapsulation key + 32-byte X25519 public key). Sent via `encryptAndHash()`, which is a plain `MixHash()` at this stage because there is no cipher key.
+- `e1.publicKey`: ML-KEM-768 ephemeral encapsulation key, 1184 bytes. Sent via `encryptAndHash()`, which is a plain `MixHash()` at this stage because there is no cipher key.
 
 ### 5.2 Message B: responder to initiator
 
 ```
 +-------------------+-----------------------+--------------------+---------+
 | e.publicKey       | enc(KEM ciphertext)   | enc(s.publicKey)   | payload |
-| 32 bytes          | 1136 bytes            | 48 bytes           | 16 bytes|
+| 32 bytes          | 1104 bytes            | 48 bytes           | 16 bytes|
 +-------------------+-----------------------+--------------------+---------+
-                    Total: 1232 bytes (16-byte payload AEAD tag)
+                    Total: 1200 bytes (16-byte payload AEAD tag)
 ```
 
 - `e.publicKey`: Responder's X25519 ephemeral, plaintext.
 - After `ee`: `MixKey(DH(e_R, e_I))` establishes the first cipher key.
-- `enc(KEM ciphertext)`: Responder encapsulates to `e1.publicKey`, producing a 1120-byte X-Wing ciphertext. The ciphertext is AEAD-encrypted under the `ee`-derived key (adds 16-byte tag). Total: 1136 bytes.
+- `enc(KEM ciphertext)`: Responder encapsulates to `e1.publicKey`, producing a 1088-byte ML-KEM-768 ciphertext. The ciphertext is AEAD-encrypted under the `ee`-derived key (adds 16-byte tag). Total: 1104 bytes.
 - After `ekem1`: `MixKey(kemSharedSecret)` strengthens the chaining key.
 - `enc(s.publicKey)`: Responder static public key (32 bytes + 16-byte AEAD tag = 48 bytes), encrypted under the KEM-strengthened key.
 - After `es`: `MixKey(DH(e_I, s_R))` mixes classical auth.
@@ -152,12 +154,12 @@ Swapping steps 2 and 3 would produce divergent chaining keys and is incorrect.
 Initiator                               Responder
 ---------                               ---------
 generate e (X25519)
-generate e1 (X-Wing)
+generate e1 (ML-KEM-768)
 writeMessageA(payload=empty)
   -> e, e1
                                         readMessageA()
                                           read e (32 bytes)
-                                          read e1 (1216 bytes, store as re1)
+                                          read e1 (1184 bytes, store as re1)
 
                                         generate e (X25519)
                                         writeMessageB(payload)
@@ -172,7 +174,7 @@ writeMessageA(payload=empty)
 readMessageB()
   read e (32 bytes)
   MixKey(DH(ee))
-  readEkem1 (1136 bytes)
+  readEkem1 (1104 bytes)
     decryptAndHash(cipherText)
     decapsulate(cipherText, e1.secretKey)
     mixKey(sharedSecret)
@@ -226,7 +228,7 @@ The AEAD protection on the ciphertext (`encryptAndHash` before `mixKey`) means t
 | Property | Source |
 |----------|--------|
 | Forward secrecy (classical) | DH(ee): ephemeral X25519 on both sides |
-| Forward secrecy (quantum-safe) | X-Wing KEM: ML-KEM-768 + X25519 |
+| Forward secrecy (quantum-safe) | ML-KEM-768 KEM alongside the pattern's existing X25519 |
 | Mutual authentication | DH(es) + DH(se) via signed static keys |
 | Identity hiding | Static keys encrypted after ephemeral exchange |
 | Hybrid robustness | Secure if either X25519 or ML-KEM-768 is unbroken |
@@ -242,7 +244,7 @@ Deterministic test vectors are in `test/fixtures/pqc-test-vectors.json`. They we
 
 ```json
 {
-  "protocol": "Noise_XXhfs_25519+XWing_ChaChaPoly_SHA256",
+  "protocol": "Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256",
   "vectors": [
     {
       "vector_index": 1,
@@ -260,8 +262,8 @@ Deterministic test vectors are in `test/fixtures/pqc-test-vectors.json`. They we
       "msg_a": "<hex>",
       "msg_b": "<hex>",
       "msg_c": "<hex>",
-      "msg_a_bytes": 1248,
-      "msg_b_bytes": 1232,
+      "msg_a_bytes": 1216,
+      "msg_b_bytes": 1200,
       "msg_c_bytes": 64,
       "handshake_hash": "<hex>",
       "cs1_k": "<hex 32-byte key>",
@@ -305,10 +307,10 @@ import { noiseHFS } from '@chainsafe/libp2p-noise'
 import type { IKem } from '@chainsafe/libp2p-noise'
 
 const myKem: IKem = {
-  PUBKEY_LEN: 1216,
-  CT_LEN: 1120,
+  PUBKEY_LEN: 1184,
+  CT_LEN: 1088,
   SS_LEN: 32,
-  SK_LEN: 32,
+  SK_LEN: 2400,
   generateKemKeyPair: () => { /* ... */ },
   encapsulate: (pubkey) => { /* ... */ },
   decapsulate: (ct, sk) => { /* ... */ }
@@ -325,31 +327,37 @@ const node = await createLibp2p({
 
 A compatible implementation in another language must:
 
-1. Use the same protocol name exactly: `Noise_XXhfs_25519+XWing_ChaChaPoly_SHA256`
-2. Use X-Wing (ML-KEM-768 + X25519 with SHA3-256 combiner) as the KEM
+1. Use the same protocol name exactly: `Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256`
+2. Use raw ML-KEM-768 (FIPS 203) as the KEM
 3. Apply `encryptAndHash(cipherText)` BEFORE `mixKey(sharedSecret)` in the ekem1 token
-4. Read e1 as 1216 bytes in Message A (no AEAD tag at that stage)
-5. Read ekem1 as 1120 + 16 = 1136 bytes in Message B (ciphertext + AEAD tag)
+4. Read e1 as 1184 bytes in Message A (no AEAD tag at that stage)
+5. Read ekem1 as 1088 + 16 = 1104 bytes in Message B (ciphertext + AEAD tag)
 6. Use the test vectors in `test/fixtures/pqc-test-vectors.json` to verify correctness
 
 ---
 
 ## 14. Performance Reference
 
-Measured on Node.js v22.17.1, Windows 11 x64 (pure JS, no WASM or native bindings):
+Node.js v22.17.1, Windows 11 x64. Medians over 5 passes of 30 iterations (`benchmarks/paired-passes.mjs`).
 
-| Operation | ops/s | ms/op |
-|-----------|------:|------:|
-| X-Wing keygen | 293 | 3.42 |
-| X-Wing encapsulate | 120 | 8.32 |
-| X-Wing decapsulate | 136 | 7.33 |
-| KEM round-trip | 47 | 21.43 |
-| Classical XX handshake | 114 | 8.75 |
-| XXhfs handshake | 23 | 44.18 |
+**The comparison has to be like for like.** `noise()` defaults to `defaultCrypto` (Node native plus AssemblyScript WASM) while `noiseHFS()` defaults to `pureJsCrypto` (`@noble/*`, all JavaScript). Timing one against the other changes the KEM *and* the whole symmetric/DH backend at once, then attributes the difference to the KEM. So all four cells are measured:
 
-The approximately 5x latency increase over classical XX is dominated by the X-Wing KEM (around 21 ms per round-trip). Native WASM or Node.js native ML-KEM support would improve throughput by roughly 3 to 10x.
+| handshake | backend | ms |
+|-----------|---------|---:|
+| classical XX | native | 6.82 |
+| classical XX | pure JS | 20.72 |
+| XXhfs | native | 10.30 |
+| XXhfs | pure JS | 24.15 |
 
-See `benchmarks/results.md` for the full analysis.
+| comparison | overhead |
+|------------|---------:|
+| like for like, native backend | **1.57x** (1.51 to 1.61) |
+| like for like, pure JS backend | **1.16x** (1.13 to 1.18) |
+| mismatched backends, as often reported | 3.54x |
+
+The KEM itself costs 3.45 to 3.68 ms. The backend choice costs 14.11 ms, roughly four times more. In JavaScript the post-quantum primitive is not the expensive part of a post-quantum handshake.
+
+See `benchmarks/RESULTS.md` in `paschal533/pq-noise-artifacts` for the raw data and limitations.
 
 ---
 
