@@ -33,6 +33,11 @@ Read directly from the interoperability test vectors in `../test/fixtures/pqc-te
 | A, initiator to responder | 32 B | **1,216 B** | +1,184 B |
 | B, responder to initiator | 96 B | **1,200 B** | +1,104 B |
 | C, initiator to responder | 64 B | **64 B** | 0 |
+| **total** | **192 B** | **2,480 B** | **+2,288 B** |
+
+Every message fits inside a standard 1,500-byte MTU: Message A at 1,216 bytes plus libp2p's
+two-byte length prefix sits below the 1,460-byte maximum segment size, so the hybrid handshake
+adds no IP fragmentation and no additional round trip.
 
 Msg A carries the 1,184-byte ML-KEM-768 encapsulation key (`e1`); msg B carries the 1,088-byte
 ciphertext plus its 16-byte AEAD tag (`ekem1`). Msg C is unchanged from classical XX.
