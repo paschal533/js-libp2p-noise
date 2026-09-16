@@ -119,12 +119,12 @@ This message is identical to the classical Noise XX pattern. The initiator sends
 
 | Message | Classical XX | XXhfs (PQ) | Delta |
 |---------|------------:|----------:|------:|
-| Msg A (initiator to responder) | 32 B | 1,248 B | +1,216 B |
-| Msg B (responder to initiator) | 96 B | 1,232 B | +1,136 B |
+| Msg A (initiator to responder) | 32 B | 1,216 B | +1,184 B |
+| Msg B (responder to initiator) | 96 B | 1,200 B | +1,104 B |
 | Msg C (initiator to responder) | 64 B | 64 B | 0 B |
-| Total | 192 B | 2,544 B | +2,352 B |
+| Total | 192 B | 2,480 B | +2,288 B |
 
-Real libp2p handshakes include a `NoiseHandshakePayload` (signed identity key + extensions). With Ed25519 identity (~108 bytes per side), total is approximately 2,852 bytes for XXhfs vs approximately 500 bytes for classical XX.
+Real libp2p handshakes include a `NoiseHandshakePayload` (signed identity key + extensions) in messages B and C. The payload is identical in both patterns, so it adds the same bytes to each column and the delta stays +2,288 B.
 
 ---
 
