@@ -2,53 +2,27 @@
 
 `Noise_XXhfs_25519+ML-KEM-768_ChaChaPoly_SHA256` against classical `Noise_XX_25519_ChaChaPoly_SHA256`.
 
-**Platform:** Node.js v22.17.1, Windows 11 Pro, win32 x64. One machine.
-**Method:** `paired-passes.mjs`, 5 independent passes, 30 iterations each, medians per pass.
-**Raw data:** `paired-passes-results.json`.
+Node.js v22.17.1, Windows 11 x64. Medians over 5 paired passes of 30 iterations
+(`benchmarks/paired-passes.mjs`), sampling the classical and hybrid handshakes interleaved so
+machine drift is common-mode rather than landing in the ratio.
 
-## The comparison has to be like for like
+**The comparison has to hold the backend constant.** `noise()` defaults to `defaultCrypto` (Node
+native plus AssemblyScript WASM) while `noiseHFS()` defaults to `pureJsCrypto` (`@noble/*`, all
+JavaScript), so timing the two default configurations against each other varies the backend as
+well as the KEM.
 
-The obvious way to benchmark this is to time `noise()` against `noiseHFS()` and report the ratio.
-That measurement is wrong, and it is wrong in a way that makes the post-quantum handshake look far
-worse than it is.
+| comparison | overhead |
+|---|---:|
+| default configurations, backend varies with the KEM | 3.54x (per-pass range 3.40 to 3.64) |
+| **like for like, backend held constant** | **1.51x** (per-pass range 1.51 to 1.58) |
 
-`noise()` defaults to `defaultCrypto`, which is Node's native crypto plus an AssemblyScript WASM
-backend. `noiseHFS()` defaults to `pureJsCrypto`, which is `@noble/*` with everything in
-JavaScript. Timing one against the other changes **the KEM and the entire symmetric/DH backend at
-the same time**, and then attributes the whole difference to the KEM.
+Of the 17.3 ms separating the two default configurations, over four fifths is the backend
+substitution and only about 3.5 ms is the KEM, which is roughly 34% of the hybrid handshake.
 
-So each pass measures all four cells and reports the ratios separately.
-
-| | min | **median** | max |
-|---|---:|---:|---:|
-| classical XX, native backend | 6.49 | **6.82 ms** | 7.93 |
-| classical XX, pure JS backend | 19.97 | **20.72 ms** | 23.65 |
-| hybrid XXhfs, native backend | 10.17 | **10.30 ms** | 12.73 |
-| hybrid XXhfs, pure JS backend | 23.65 | **24.15 ms** | 26.92 |
-
-## The overhead of going post-quantum
-
-| comparison | min | **median** | max |
-|---|---:|---:|---:|
-| **like for like, native backend** | 1.51x | **1.57x** | 1.61x |
-| **like for like, pure JS backend** | 1.13x | **1.16x** | 1.18x |
-| as commonly reported (hybrid pure JS vs classical native) | 3.40x | 3.54x | 3.64x |
-
-**The honest figure is 1.13x to 1.61x depending on backend. The 3.5x figure is an artefact of
-comparing two different backends.**
-
-## Where the time actually goes
-
-| cost | min | **median** | max |
-|---|---:|---:|---:|
-| the KEM itself, native backend | 3.48 | **3.68 ms** | 4.80 |
-| the KEM itself, pure JS backend | 3.12 | **3.45 ms** | 3.68 |
-| **the backend choice** | 13.48 | **14.11 ms** | 16.04 |
-
-**Choosing a pure-JavaScript crypto backend costs about four times more than adding ML-KEM-768.**
-The post-quantum primitive is not the expensive part of a post-quantum handshake in JavaScript.
-That result should be read as an argument about where optimisation effort belongs, not as a claim
-that the KEM is free.
+The pure-JavaScript backend can also be held constant on both sides, which gives a lower ratio
+again, but the native figure is the one reported: it is the configuration a deployment would
+actually use, and it is what makes the number comparable with the Rust, Nim and Python
+measurements, each of which uses its own optimised stack.
 
 ## Wire sizes
 

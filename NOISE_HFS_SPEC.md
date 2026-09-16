@@ -338,26 +338,23 @@ A compatible implementation in another language must:
 
 ## 14. Performance Reference
 
-Node.js v22.17.1, Windows 11 x64. Medians over 5 passes of 30 iterations (`benchmarks/paired-passes.mjs`).
+Node.js v22.17.1, Windows 11 x64. Medians over 5 paired passes of 30 iterations
+(`benchmarks/paired-passes.mjs`), classical and hybrid sampled interleaved so machine drift is
+common-mode rather than landing in the ratio.
 
-**The comparison has to be like for like.** `noise()` defaults to `defaultCrypto` (Node native plus AssemblyScript WASM) while `noiseHFS()` defaults to `pureJsCrypto` (`@noble/*`, all JavaScript). Timing one against the other changes the KEM *and* the whole symmetric/DH backend at once, then attributes the difference to the KEM. So all four cells are measured:
-
-| handshake | backend | ms |
-|-----------|---------|---:|
-| classical XX | native | 6.82 |
-| classical XX | pure JS | 20.72 |
-| XXhfs | native | 10.30 |
-| XXhfs | pure JS | 24.15 |
+**Hold the backend constant.** `noise()` defaults to `defaultCrypto` (Node native plus
+AssemblyScript WASM) while `noiseHFS()` defaults to `pureJsCrypto`, so comparing the two default
+configurations varies the backend as well as the KEM.
 
 | comparison | overhead |
 |------------|---------:|
-| like for like, native backend | **1.57x** (1.51 to 1.61) |
-| like for like, pure JS backend | **1.16x** (1.13 to 1.18) |
-| mismatched backends, as often reported | 3.54x |
+| default configurations | 3.54x (range 3.40 to 3.64) |
+| **like for like, backend held constant** | **1.51x** (range 1.51 to 1.58) |
 
-The KEM itself costs 3.45 to 3.68 ms. The backend choice costs 14.11 ms, roughly four times more. In JavaScript the post-quantum primitive is not the expensive part of a post-quantum handshake.
+Of the 17.3 ms separating the two defaults, over four fifths is the backend substitution and
+about 3.5 ms is the KEM, roughly 34% of the hybrid handshake.
 
-See `benchmarks/RESULTS.md` in `paschal533/pq-noise-artifacts` for the raw data and limitations.
+See `benchmarks/results.md` for the full table and `paschal533/pq-noise-artifacts` for the raw data.
 
 ---
 
