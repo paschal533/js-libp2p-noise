@@ -4,9 +4,18 @@
 
 Node.js v22.17.1, Windows 11 x64. Medians over 5 paired passes of 30 iterations
 (`benchmarks/paired-passes.mjs`), sampling the classical and hybrid handshakes interleaved so
-machine drift is common-mode rather than landing in the ratio. Last refreshed 2026-09-17, one
-session alongside paired Python, Nim and Rust runs on the same machine (see cross-language table
-below).
+machine drift is largely common-mode, and its effect on the ratio is largely (not fully)
+cancelled rather than left to land directly in it. Last refreshed 2026-09-17, one session
+alongside paired Python, Nim and Rust runs on the same machine (see cross-language table below).
+
+**The whole machine measured slower on 2026-09-17 than on 2026-09-10, before any ratio is
+computed:** classical (native) 6.82 -> 15.40 ms (2.26x), hybrid (native) 10.30 -> 24.10 ms
+(2.34x). AC power was confirmed on and the power plan (Balanced) is unchanged from the prior
+session; the cause is not established. Because KEM and non-KEM cost need not scale together
+under whatever changed, the overhead ratio below may not be directly comparable to the
+2026-09-10 one even though it is internally sound. See
+`pq-noise-artifacts/benchmarks/2026-09-17/SUMMARY.md` for the same caveat applied to all four
+languages.
 
 **The comparison has to hold the backend constant.** `noise()` defaults to `defaultCrypto` (Node
 native plus AssemblyScript WASM) while `noiseHFS()` defaults to `pureJsCrypto` (`@noble/*`, all
@@ -18,13 +27,18 @@ well as the KEM.
 | default configurations, backend varies with the KEM | 3.24x (per-pass range 3.19 to 3.52) |
 | **like for like, backend held constant** | **1.56x** (per-pass range 1.51 to 1.60) |
 
-Of the 32.9 ms separating the two default configurations, about four fifths (82%, ~27.0 ms) is the
-backend substitution and about 8.6 ms is the KEM, which is roughly 36% of the hybrid (native)
-handshake.
+The 32.9 ms gap between the two default configurations (hybrid pure-JS 48.25 ms vs classical
+native 15.40 ms) decomposes, per pass then medianed, into about 6.7 ms of KEM cost within the
+pure-JS backend and about 26.9 ms of backend substitution (pure-JS classical minus native
+classical) — together about 33.6 ms, close to the 32.9 ms gap; the small residual is because a
+median of per-pass differences is not the same number as the difference of two medians. Holding
+the *native* backend constant on both sides instead gives a different quantity, the
+native-backend KEM cost: about 8.6 ms, roughly 36% of the 24.10 ms native hybrid handshake. These
+two KEM-cost figures (6.7 ms pure-JS, 8.6 ms native) are not the same measurement.
 
 (2026-09-10 figures, for reference: 3.54x default, range 3.40-3.64; 1.51x like-for-like, range
-1.51-1.58. Both ratios shifted mildly upward on 2026-09-17; see the artefacts SUMMARY linked below
-for the cross-run comparison and the reasoning about a possible shared cause.)
+1.51-1.58. The like-for-like ratio moved from 1.51x to 1.56x, about +3%; see the artefacts
+SUMMARY linked below for the whole-machine-slowdown caveat that applies to this comparison.)
 
 The pure-JavaScript backend can also be held constant on both sides, which gives a lower ratio
 again, but the native figure is the one reported: it is the configuration a deployment would
@@ -38,17 +52,21 @@ different transport. Only the within-language classical-vs-hybrid ratio is a sou
 across languages, and the full breakdown (KEM library, sampling method, raw files) lives in the
 `pq-noise-artifacts` repository, not duplicated here:
 
-| language | overhead (2026-09-10) | overhead (2026-09-17) |
-|---|---:|---:|
-| Python (`kyber-py`) | 10.7x | 12.0x (range 11.3-12.4) |
-| **JavaScript** (`@noble/post-quantum`) | 1.51x | **1.56x** (range 1.51-1.60) |
-| Rust (RustCrypto `ml-kem`) | 1.24x | 1.32x (range 1.23-1.61) |
-| Nim (BoringSSL) | 1.13x | 1.19x (range 1.16-1.21) |
+| language | overhead (2026-09-10) | overhead (2026-09-17) | shift |
+|---|---:|---:|---|
+| Python (`kyber-py`) | 10.7x | 12.0x (range 11.3-12.4) | +1.3x, ~+12% — the largest overhead shift |
+| **JavaScript** (`@noble/post-quantum`) | 1.51x | **1.56x** (range 1.51-1.60) | +0.05x, ~+3% |
+| Rust (RustCrypto `ml-kem`) | 1.24x | 1.32x (range 1.23-1.61) | +0.08x, ~+6.5% |
+| Nim (BoringSSL) | 1.13x | 1.19x (range 1.16-1.21) | +0.06x, ~+5% |
 
-See `pq-noise-artifacts/benchmarks/RESULTS.md` and
-`pq-noise-artifacts/benchmarks/2026-09-17/SUMMARY.md` for KEM-share breakdowns, sampling method per
-language, and the anomalies observed in the 2026-09-17 run (notably Python's KEM share of the
-hybrid handshake falling from ~91% to ~68% even as its overhead ratio rose).
+All four overhead ratios moved up; the whole machine measured slower on every language before any
+ratio was taken (see the artefacts SUMMARY), so it is an open question how much of this reflects
+the protocol versus the same unexplained slowdown. See `pq-noise-artifacts/benchmarks/RESULTS.md`
+and `pq-noise-artifacts/benchmarks/2026-09-17/SUMMARY.md` for KEM-share breakdowns (computed by
+one consistent method, the delta method `(hybrid-classical)/hybrid` — an earlier draft of this
+page compared two different formulas across dates and wrongly reported a large Python KEM-share
+"shift" that a single consistent method does not show), sampling method per language, and the
+other anomalies observed in the 2026-09-17 run.
 
 ## Wire sizes
 
