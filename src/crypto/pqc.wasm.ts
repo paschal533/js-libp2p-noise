@@ -1,11 +1,11 @@
 /**
- * ML-KEM-768 WASM backend — currently stubbed to pure-JS noble.
+ * ML-KEM-768 WASM backend, currently stubbed to pure-JS noble.
  *
  * The WASM binary was compiled for X-Wing. To restore WASM acceleration after
  * migration, update src-wasm/src/lib.rs to export mlkem768_keygen/encapsulate/
  * decapsulate and run `pnpm run build:wasm`.
  *
- * The stub exports satisfy all callers without behavioural change — wire
+ * The stub exports satisfy all callers without behavioural change; the wire
  * format is identical to pqcKem since both use the same ML-KEM-768 operations.
  */
 

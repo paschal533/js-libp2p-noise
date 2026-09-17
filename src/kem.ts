@@ -3,7 +3,7 @@
  *
  * KEM is fundamentally asymmetric: encapsulate() runs at the sender, decapsulate()
  * runs at the receiver. This is why KEM cannot be expressed through the symmetric
- * ICrypto.dh(keypair, publicKey) interface — dh() works identically for both parties,
+ * ICrypto.dh(keypair, publicKey) interface: dh() works identically for both parties,
  * but encap/decap are different operations called by different parties.
  *
  * In the XXhfs pattern:
@@ -14,10 +14,10 @@
  */
 
 export interface KemKeyPair {
-  /** KEM encapsulation (public) key — 1184 bytes for ML-KEM-768 */
+  /** KEM encapsulation (public) key: 1184 bytes for ML-KEM-768 */
   publicKey: Uint8Array
   /**
-   * KEM decapsulation (secret) key — 2400-byte decapsulation key for ML-KEM-768.
+   * KEM decapsulation (secret) key: 2400-byte decapsulation key for ML-KEM-768.
    * Named secretKey (not privateKey) to clearly distinguish from X25519 KeyPair.
    */
   secretKey: Uint8Array
@@ -26,12 +26,12 @@ export interface KemKeyPair {
 export interface KemEncapsulateResult {
   /** Ciphertext to transmit to the holder of the decapsulation key (1088 bytes for ML-KEM-768) */
   cipherText: Uint8Array
-  /** Shared secret — 32 bytes, derivable only by the holder of the matching secretKey */
+  /** Shared secret: 32 bytes, derivable only by the holder of the matching secretKey */
   sharedSecret: Uint8Array
 }
 
 /**
- * Key Encapsulation Mechanism — the PQC extension point for Noise HFS.
+ * Key Encapsulation Mechanism: the PQC extension point for Noise HFS.
  *
  * Implementations: pqcKem (raw ML-KEM-768 via @noble/post-quantum/ml-kem.js)
  */
@@ -48,7 +48,7 @@ export interface IKem {
   /**
    * Decapsulate: recover the shared secret from a ciphertext using the secret key.
    * Called by the party that owns the key pair.
-   * Note: ML-KEM decapsulation never throws on bad input — it returns a pseudorandom
+   * Note: ML-KEM decapsulation never throws on bad input; it returns a pseudorandom
    * value instead (implicit rejection, per FIPS 203 §6.4).
    */
   decapsulate(cipherText: Uint8Array, secretKey: Uint8Array): Uint8Array

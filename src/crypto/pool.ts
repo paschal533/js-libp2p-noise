@@ -1,5 +1,5 @@
 /**
- * KemKeypairPool — pre-computes KEM keypairs during idle time so the
+ * KemKeypairPool pre-computes KEM keypairs during idle time so the
  * keygen cost (~3 ms for ML-KEM-768 on pure-JS) does not fall on the connection
  * critical path.
  *
@@ -36,7 +36,7 @@ export class KemKeypairPool {
   constructor (kem: IKem, { minSize = 3 }: KemKeypairPoolOptions = {}) {
     this.kem = kem
     this.minSize = minSize
-    // Fill synchronously at construction — pays the keygen cost up front,
+    // Fill synchronously at construction. This pays the keygen cost up front,
     // before any connection is established.
     this.fill()
   }

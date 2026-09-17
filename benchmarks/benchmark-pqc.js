@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 /**
- * PQC Benchmark — Classical XX vs. XXhfs (raw ML-KEM-768) Noise handshakes
+ * PQC Benchmark: Classical XX vs. XXhfs (raw ML-KEM-768) Noise handshakes
  *
  * Measures:
  *   1. KEM micro-benchmarks: generateKemKeyPair, encapsulate, decapsulate
@@ -26,7 +26,7 @@ import { noiseHFS } from '../dist/src/noise-hfs.js'
 import { pqcKem } from '../dist/src/crypto/pqc.js'
 import { KemKeypairPool } from '../dist/src/crypto/pool.js'
 
-// Optional WASM backend — only available after `pnpm build:wasm`
+// Optional WASM backend, only available after `pnpm build:wasm`
 let pqcKemWasm = null
 let pqcCryptoWasm = null
 let initWasmKem = null
@@ -36,7 +36,7 @@ try {
   pqcCryptoWasm = wasmMod.pqcCryptoWasm
   initWasmKem = wasmMod.initWasmKem
 } catch {
-  // WASM not built yet — run `pnpm build:wasm` to enable
+  // WASM not built yet; run `pnpm build:wasm` to enable
 }
 
 // ─── Fixture peers (same keys as benchmarks/benchmark.js) ────────────────────
@@ -164,7 +164,7 @@ async function runKemBenchmarks () {
       printRow('full KEM round-trip [WASM]', r.opsPerSec, r.avgMs)
     }
   } else {
-    console.log('  (WASM backend not built — run `pnpm build:wasm` to enable)')
+    console.log('  (WASM backend not built; run `pnpm build:wasm` to enable)')
   }
 }
 
@@ -281,17 +281,17 @@ async function runWireSizeReport () {
     return { outbound, inbound, messages }
   }
 
-  // Classical XX — known sizes from spec (Noise_XX_25519_ChaChaPoly_SHA256)
+  // Classical XX: known sizes from spec (Noise_XX_25519_ChaChaPoly_SHA256)
   // Message tokens: A=e | B=e,ee,s,es | C=s,se
   // DH tokens (ee, es, se) contribute 0 bytes; only keypubkeys/ciphertexts are sent
   const xx = {
-    msgA: 32,                                  // e.publicKey (no AEAD — no key yet)
+    msgA: 32,                                  // e.publicKey (no AEAD, as there is no key yet)
     msgB: 32 + 48 + 16,                        // e(32) + encryptAndHash(s_R:32+16) + tag(16)
     msgC: 48 + 16                              // encryptAndHash(s_I:32+16) + tag(16)
   }
   const xxTotal = xx.msgA + xx.msgB + xx.msgC
 
-  // XXhfs — known sizes from Phase 2 tests
+  // XXhfs: known sizes from Phase 2 tests
   const hfs = {
     msgA: 32 + 1184 + 0,                        // e + e1 (ML-KEM-768 encap key, no AEAD yet)
     msgB: 32 + 1104 + 48 + 16,                  // e + ekem1(1088+16) + encS(32+16) + encPayload(tag)

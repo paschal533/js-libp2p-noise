@@ -1,11 +1,11 @@
 /**
  * PQC crypto backend: classical ICryptoInterface + ML-KEM-768 KEM (IKem).
  *
- * pqcKem  — standalone IKem implementation (raw ML-KEM-768 via @noble/post-quantum)
- * pqcCrypto — ICryptoInterface & IKem composite for use with XXhfsHandshakeState
+ * pqcKem: standalone IKem implementation (raw ML-KEM-768 via @noble/post-quantum)
+ * pqcCrypto: ICryptoInterface & IKem composite for use with XXhfsHandshakeState
  *
  * ML-KEM-768 is FIPS 203 (August 2024). The KEM slot in Noise XXhfs is a pure
- * KEM — no X25519 wrapper is needed because the hybrid security already comes
+ * KEM. No X25519 wrapper is needed because the hybrid security already comes
  * from the protocol's own DH tokens (ee, es, se).
  *
  * Key sizes:

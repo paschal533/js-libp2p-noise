@@ -1,9 +1,9 @@
 /**
- * XXhfs handshake orchestration — initiator and responder sides.
+ * XXhfs handshake orchestration for the initiator and responder sides.
  *
  * Mirrors performHandshake.ts but uses XXhfsHandshakeState (which adds the
- * e1 / ekem1 KEM tokens) and NOISE_HFS_PROTOCOL_NAME. Every other step —
- * payload creation, signature verification, cipher-state split — is identical
+ * e1 / ekem1 KEM tokens) and NOISE_HFS_PROTOCOL_NAME. Every other step
+ * (payload creation, signature verification, cipher-state split) is identical
  * to the classical XX handshake, which is intentional: only the key-exchange
  * path changes; the identity/authentication layer is preserved.
  */
@@ -23,7 +23,7 @@ import type { HandshakeResult, HandshakeParams } from './types.js'
 import type { AbortOptions } from '@libp2p/interface'
 
 export interface HfsHandshakeParams extends HandshakeParams {
-  /** KEM backend — provides generateKemKeyPair / encapsulate / decapsulate */
+  /** KEM backend: provides generateKemKeyPair / encapsulate / decapsulate */
   kem: IKem
 }
 

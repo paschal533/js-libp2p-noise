@@ -9,8 +9,8 @@
  *   - transport cipher keys cs1.k and cs2.k
  *
  * If any assertion fails after a code change, either:
- *   (a) a bug was introduced — fix the code, or
- *   (b) the protocol changed intentionally — regenerate vectors with
+ *   (a) a bug was introduced: fix the code, or
+ *   (b) the protocol changed intentionally: regenerate vectors with
  *       `node scripts/generate-pqc-vectors.js` and commit the new file.
  *
  * Note on interoperability:
@@ -38,7 +38,7 @@ import type { KeyPair } from '../src/types.js'
 // ─── Fixture loading ──────────────────────────────────────────────────────────
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-// Source is at test/fixtures/; compiled output lands in dist/test/ — go up two levels.
+// Source is at test/fixtures/; compiled output lands in dist/test/, so go up two levels.
 const FIXTURE_PATH = resolve(__dirname, '../../test/fixtures/pqc-test-vectors.json')
 const vectorFile = JSON.parse(readFileSync(FIXTURE_PATH, 'utf-8'))
 
@@ -217,7 +217,7 @@ describe('Noise_XXhfs test vectors', () => {
       it('Final handshake hash matches', () => {
         assert(
           toHex(result.handshakeHash) === v.handshake_hash,
-          'Handshake hash mismatch — chaining key or hash operation diverged'
+          'Handshake hash mismatch: chaining key or hash operation diverged'
         )
       })
 

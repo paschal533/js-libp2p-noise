@@ -1,5 +1,5 @@
 /**
- * Integration tests for NoiseHFS — the post-quantum ConnectionEncrypter.
+ * Integration tests for NoiseHFS, the post-quantum ConnectionEncrypter.
  *
  * These tests exercise the full libp2p connection stack: two in-memory
  * endpoints exchange real encrypted data through the XXhfs handshake,
@@ -184,7 +184,7 @@ describe('NoiseHFS (post-quantum ConnectionEncrypter)', () => {
         sessionPeers.add(outbound.remotePeer.toString())
       }
 
-      // All 3 sessions authenticate the same remote peer — just a sanity check
+      // All 3 sessions authenticate the same remote peer (just a sanity check)
       expect(sessionPeers.size).to.equal(1)
       expect([...sessionPeers][0]).to.equal(pB.peerId.toString())
     })

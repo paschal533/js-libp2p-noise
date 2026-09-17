@@ -81,11 +81,11 @@ describe('XXhfsHandshakeState', () => {
     })
   })
 
-  describe('Message A (e, e1) — byte layout', () => {
+  describe('Message A (e, e1) byte layout', () => {
     it('is exactly 1216 bytes with empty payload (32 DH + 1184 KEM)', () => {
       const { initiator } = makeHandshakePair()
       const msgA = initiator.writeMessageA(ZEROLEN)
-      // 32 (e.pubkey) + 1184 (e1.pubkey) + 0 (empty payload, no AEAD tag — no key yet)
+      // 32 (e.pubkey) + 1184 (e1.pubkey) + 0 (empty payload, no AEAD tag as there is no key yet)
       expect(msgA.subarray().byteLength).to.equal(1216)
     })
 
@@ -113,7 +113,7 @@ describe('XXhfsHandshakeState', () => {
     })
   })
 
-  describe('Message B (e, ee, ekem1, s, es) — byte layout', () => {
+  describe('Message B (e, ee, ekem1, s, es) byte layout', () => {
     it('is exactly 1200 bytes overhead with empty payload (32+1104+48+16)', () => {
       const { initiator, responder } = makeHandshakePair()
       const msgA = initiator.writeMessageA(ZEROLEN)
@@ -124,7 +124,7 @@ describe('XXhfsHandshakeState', () => {
     })
   })
 
-  describe('Message C (s, se) — byte layout', () => {
+  describe('Message C (s, se) byte layout', () => {
     it('is exactly 64 bytes with empty payload (48 encS + 16 payload tag)', () => {
       const { initiator, responder } = makeHandshakePair()
       const msgA = initiator.writeMessageA(ZEROLEN)
@@ -205,7 +205,7 @@ describe('XXhfsHandshakeState', () => {
       const msgA = initiator.writeMessageA(ZEROLEN)
       const bytes = new Uint8ArrayList(msgA)
 
-      // Tamper the e (DH) ephemeral key — first 32 bytes
+      // Tamper the e (DH) ephemeral key (the first 32 bytes)
       const arr = bytes.subarray()
       arr[0] ^= 0xff
       responder.readMessageA(new Uint8ArrayList(arr))
@@ -243,7 +243,7 @@ describe('XXhfsHandshakeState', () => {
 
     it('wrong static key in Message B causes authentication failure on Message C', () => {
       // Responder sends a valid Message B, but then initiator tries with a mismatched
-      // static key — readMessageC should throw as AEAD tags won't verify
+      // static key; readMessageC should throw as AEAD tags won't verify
       const { initiator, responder } = makeHandshakePair()
       const msgA = initiator.writeMessageA(ZEROLEN)
       responder.readMessageA(new Uint8ArrayList(msgA))
@@ -251,7 +251,7 @@ describe('XXhfsHandshakeState', () => {
       initiator.readMessageB(new Uint8ArrayList(msgB))
       const msgC = initiator.writeMessageC(ZEROLEN)
 
-      // Use a fresh responder that hasn't seen Message A — it will have different
+      // Use a fresh responder that hasn't seen Message A. It will have different
       // ephemeral state and won't be able to decrypt Message C
       const { responder: freshResp } = makeHandshakePair()
       expect(() => freshResp.readMessageC(new Uint8ArrayList(msgC))).to.throw()
@@ -263,7 +263,7 @@ describe('XXhfsHandshakeState', () => {
       const { initiator: hfsInit } = makeHandshakePair()
       const { initiator: xxInit } = makeHandshakePair()
 
-      // Both write Message A — but their symmetric states were initialized with different names
+      // Both write Message A, but their symmetric states were initialized with different names
       hfsInit.writeMessageA(ZEROLEN)
       xxInit.writeMessageA(ZEROLEN)
 

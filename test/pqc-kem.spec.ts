@@ -9,7 +9,7 @@ import { pqcKem, pqcCrypto } from '../src/crypto/pqc.js'
  * Key sizes: publicKey=1184B, secretKey=2400B, cipherText=1088B, sharedSecret=32B
  *
  * Note on decapsulation failure (ML-KEM implicit rejection, FIPS 203 §6.4):
- *   ML-KEM decapsulate() never throws on wrong input — it returns a pseudorandom
+ *   ML-KEM decapsulate() never throws on wrong input; it returns a pseudorandom
  *   value. Tests that check wrong-key behavior rely on statistical divergence,
  *   not an exception.
  */

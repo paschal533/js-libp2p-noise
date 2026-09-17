@@ -1,5 +1,5 @@
 /**
- * NoiseHFS — Post-Quantum Noise connection encrypter.
+ * NoiseHFS: Post-Quantum Noise connection encrypter.
  *
  * Implements the ConnectionEncrypter interface using the XXhfs Noise pattern:
  *   Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256
@@ -11,7 +11,7 @@
  * secrecy via ML-KEM-768 alongside the existing identity/authentication layer
  * (Ed25519 signatures, unchanged).
  *
- * Both endpoints MUST use noiseHFS — it is not backward-compatible with the
+ * Both endpoints MUST use noiseHFS; it is not backward-compatible with the
  * classical /noise protocol because the handshake message layout differs.
  *
  * ML-DSA identity integration (PR #3432 coordination):
@@ -29,7 +29,7 @@
  *       privateKey.sign() which is key-type aware
  *
  *   No code changes are needed here to support ML-DSA identity once PR #3432
- *   merges — the signature is transparent to this layer.
+ *   merges; the signature is transparent to this layer.
  *
  * Node.js native KEM backend:
  *   See src/crypto/pqc.node.ts for the planned Node.js native backend that
