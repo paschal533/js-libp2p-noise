@@ -10,12 +10,13 @@ alongside paired Python, Nim and Rust runs on the same machine (see cross-langua
 
 **The whole machine measured slower on 2026-09-17 than on 2026-09-10, before any ratio is
 computed:** classical (native) 6.82 -> 15.40 ms (2.26x), hybrid (native) 10.30 -> 24.10 ms
-(2.34x). AC power was confirmed on and the power plan (Balanced) is unchanged from the prior
-session; the cause is not established. Because KEM and non-KEM cost need not scale together
-under whatever changed, the overhead ratio below may not be directly comparable to the
-2026-09-10 one even though it is internally sound. See
-`pq-noise-artifacts/benchmarks/2026-09-17/SUMMARY.md` for the same caveat applied to all four
-languages.
+(2.34x). AC power was checked after this run and found on (`Win32_Battery.BatteryStatus=2`); no
+power-plan or AC-power record exists from the 2026-09-10 session to compare against, so this is
+not stated as unchanged, only as confirmed for this run. The cause of the slowdown is not
+established. Because KEM and non-KEM cost need not scale together under whatever changed, the
+overhead ratio below may not be directly comparable to the 2026-09-10 one even though it is
+internally sound. See `pq-noise-artifacts/benchmarks/2026-09-17/SUMMARY.md` for the same caveat
+applied to all four languages.
 
 **The comparison has to hold the backend constant.** `noise()` defaults to `defaultCrypto` (Node
 native plus AssemblyScript WASM) while `noiseHFS()` defaults to `pureJsCrypto` (`@noble/*`, all
@@ -33,8 +34,12 @@ pure-JS backend and about 26.9 ms of backend substitution (pure-JS classical min
 classical) — together about 33.6 ms, close to the 32.9 ms gap; the small residual is because a
 median of per-pass differences is not the same number as the difference of two medians. Holding
 the *native* backend constant on both sides instead gives a different quantity, the
-native-backend KEM cost: about 8.6 ms, roughly 36% of the 24.10 ms native hybrid handshake. These
-two KEM-cost figures (6.7 ms pure-JS, 8.6 ms native) are not the same measurement.
+native-backend KEM cost: about 8.6 ms (`kemCostNative`, the median of the 5 per-pass differences),
+roughly 36% of the 24.10 ms native hybrid handshake. The cross-language KEM-share table in
+`pq-noise-artifacts` instead reports 8.70 ms for this same quantity — the *difference of the two
+pass-median figures* (24.10 - 15.40) rather than the median of per-pass differences; the two
+statistics do not agree to the decimal for the same reason the 32.9 ms gap above is not exactly
+6.7 + 26.9. These KEM-cost figures are not interchangeable and should not be added together.
 
 (2026-09-10 figures, for reference: 3.54x default, range 3.40-3.64; 1.51x like-for-like, range
 1.51-1.58. The like-for-like ratio moved from 1.51x to 1.56x, about +3%; see the artefacts
@@ -54,10 +59,17 @@ across languages, and the full breakdown (KEM library, sampling method, raw file
 
 | language | overhead (2026-09-10) | overhead (2026-09-17) | shift |
 |---|---:|---:|---|
-| Python (`kyber-py`) | 10.7x | 12.0x (range 11.3-12.4) | +1.3x, ~+12% — the largest overhead shift |
+| Python (`kyber-py`) | 10.7x\* | 12.0x (range 11.3-12.4) | +1.3x, ~+12% — the largest overhead shift |
 | **JavaScript** (`@noble/post-quantum`) | 1.51x | **1.56x** (range 1.51-1.60) | +0.05x, ~+3% |
 | Rust (RustCrypto `ml-kem`) | 1.24x | 1.32x (range 1.23-1.61) | +0.08x, ~+6.5% |
 | Nim (BoringSSL) | 1.13x | 1.19x (range 1.16-1.21) | +0.06x, ~+5% |
+
+\* Python's 10.7x came from a single unpaired run (the harness was phase-separated: all classical
+handshakes, then all hybrid ones); 12.0x is the median of 5 passes of a genuinely paired harness
+(this task's Step 1). The Python row's shift therefore spans a method change as well as whatever
+else changed between the two sessions, and should not be read as a like-for-like comparison the
+way the other three languages' rows are (JS and Nim were already paired on 2026-09-10; Rust's
+comparison has its own caveat, below).
 
 All four overhead ratios moved up; the whole machine measured slower on every language before any
 ratio was taken (see the artefacts SUMMARY), so it is an open question how much of this reflects
