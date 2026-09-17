@@ -8,11 +8,12 @@ machine drift is largely common-mode, and its effect on the ratio is largely (no
 cancelled rather than left to land directly in it. Last refreshed 2026-09-17, one session
 alongside paired Python, Nim and Rust runs on the same machine.
 
-This file reports this run's own figures. Comparison against any earlier session is confined to
-one section near the end ("Previous session, for reference"), which gives each earlier value's
-own source and statistic with no delta computed against it. AC power was checked after this run
-(not during) and found on (`Win32_Battery.BatteryStatus=2`); no AC-power or power-plan record
-exists from any earlier session to compare against.
+This file reports this run's own figures. Previously published figures appear only in one
+reference table near the end ("Previously published figures (not directly comparable)"), each with
+its date, its line in `research-paper.md` and the paper's own wording for its statistic; no delta,
+ratio or factor is computed against them. AC power was checked after this run (not during) and
+found on (`Win32_Battery.BatteryStatus=2`); no AC-power or power-plan record exists from any
+earlier session.
 
 **The comparison has to hold the backend constant.** `noise()` defaults to `defaultCrypto` (Node
 native plus AssemblyScript WASM) while `noiseHFS()` defaults to `pureJsCrypto` (`@noble/*`, all
@@ -32,7 +33,7 @@ median of per-pass differences is not the same number as the difference of two m
 the *native* backend constant on both sides instead gives a different quantity, the
 native-backend KEM cost: about 8.6 ms (`kemCostNative`, the median of the 5 per-pass differences),
 roughly 36% of the 24.10 ms native hybrid handshake. The cross-language KEM-share table in
-`pq-noise-artifacts` instead reports 8.70 ms for this same quantity -- the *difference of the two
+`pq-noise-artifacts` instead reports 8.70 ms for a related quantity -- the *difference of the two
 pass-median figures* (24.10 - 15.40) rather than the median of per-pass differences; the two
 statistics do not agree to the decimal for the same reason the 32.9 ms gap here is not exactly
 6.7 + 26.9. These KEM-cost figures are not interchangeable and should not be added together.
@@ -50,36 +51,45 @@ across languages, and the full breakdown (KEM library, sampling method, raw file
 `pq-noise-artifacts` repository, not duplicated here. All figures in this table are from this
 run; none is compared to any earlier session in this table:
 
-| language | overhead, this run | KEM share, this run |
-|---|---:|---:|
-| Python (`kyber-py`) | 12.0x (range 11.3-12.4) | ~92% |
-| **JavaScript** (`@noble/post-quantum`) | **1.56x** (range 1.51-1.60) | ~36% |
-| Rust (RustCrypto `ml-kem`) | 1.32x (range 1.23-1.61) | ~20%, upper bound |
-| Nim (BoringSSL) | 1.19x (range 1.16-1.21) | median 15.9% across 5 passes (17.5%, 17.3%, 14.1%, 15.0%, 15.9%) |
+| language | overhead, this run | overhead statistic | KEM share, this run (delta method) | KEM-share inputs |
+|---|---:|---|---:|---|
+| Python (`kyber-py`) | 12.0x (range 11.3-12.4) | median and range of the 5 per-pass values, each the median of 50 paired per-iteration ratios | ~92% | 40.08 and 3.35 ms: medians of the 5 per-pass handshake medians |
+| **JavaScript** (`@noble/post-quantum`) | **1.56x** (range 1.51-1.60) | median and range of the 5 per-pass values, each the median of 30 per-iteration ratios, native backend on both sides | ~36% | 24.10 and 15.40 ms: medians of the 5 pass-level medians, native backend |
+| Rust (RustCrypto `ml-kem`) | 1.32x (range 1.23-1.61) | median and range of the 5 per-pass ratios of `estimates.json` medians (via `rust-passes.tsv`) | ~20%, upper bound | 1.96 and 1.57 ms: medians of the 5 per-pass `estimates.json` medians (via `rust-passes.tsv`) |
+| Nim (BoringSSL) | 1.19x (range 1.16-1.21) | median and range of the 5 per-pass ratios of the hybrid median to the classical median | median 15.9% across 5 passes (17.5%, 17.3%, 14.1%, 15.0%, 15.9%) | each pass's own classical and hybrid harness medians, one share per pass |
+
+KEM share is `(hybrid_ms - classical_ms) / hybrid_ms` on the inputs named in the last column.
 
 See `pq-noise-artifacts/benchmarks/RESULTS.md` and
 `pq-noise-artifacts/benchmarks/2026-09-17/SUMMARY.md` for the KEM-share method, the sampling
 method per language, and the anomalies observed in this run.
 
-## Previous session, for reference (not directly comparable)
+## Previously published figures (not directly comparable)
 
-| Language | Date | Metric | Value | Statistic | Source |
-|---|---|---|---:|---|---|
-| JavaScript | 2026-09-10 | Classical, native | 6.82 ms | median, 5 passes | research-paper.md:692-696 |
-| JavaScript | 2026-09-10 | Hybrid, native | 10.30 ms | median, 5 passes | research-paper.md:710 |
-| JavaScript | 2026-09-10 | Overhead, like-for-like native | 1.51x, range 1.51-1.58 | median-based ratio | research-paper.md:890-891 |
-| Python | 2026-09-10 | Overhead | 10.7x | ratio of medians, single unpaired run | research-paper.md:843, 890 |
-| Rust | 2026-09-10 | Overhead | 1.24x | as published (Sec 7.8 table) | research-paper.md:874, 890 |
-| Nim | 2026-09-08 | Overhead | 1.13x, range 1.12-1.14 | median-based ratio | research-paper.md:890-891 |
+Published values, their statistics and their line numbers are from `research-paper.md`. Each
+statistic is quoted in the paper's own words, or given as "as published" where the paper does not
+name one. The "This run" columns are filled only for absolute handshake latencies; this run's
+overhead and KEM-share figures are in the table above and are not repeated beside the published
+ones.
 
-No delta is computed between this table and the "this run" table above. Reasons: this run's
-absolute latencies differ from the 2026-09-10 session's by roughly a factor of two for JS, Python
-and Rust; the paper separately documents day-to-day drift of a similar size on this same machine
-(research-paper.md:651); and the Python figures span a sampling-method change (2026-09-10 ran
-classical and hybrid handshakes in separate phases, this run's harness -- built in this task's
-Step 1 -- interleaves them per iteration). Nim's prior figure is from 2026-09-08, a different
-session from the other three languages' 2026-09-10. The full timing comparison, with each pair
-using the same statistic on both sides, is in `pq-noise-artifacts/benchmarks/2026-09-17/SUMMARY.md`.
+| Language | Metric | Published date | Published value | Statistic, as the paper words it | Paper line | This run, 2026-09-17 | This run's statistic |
+|---|---|---|---:|---|---|---:|---|
+| JavaScript | Classical handshake, native backend | 2026-09-10 | 6.82 ms | "Medians across five serial passes" (:692); the same value also appears in the table introduced as "Medians of thirty iterations, four repetitions" (:703) | :696, :707 | 15.40 ms | median of the 5 pass-level medians (`summary.medians.xxNative`, `js-paired-passes.json`) |
+| JavaScript | Hybrid handshake, native backend | 2026-09-10 | 10.30 ms | "Medians of thirty iterations, four repetitions" (:703) | :710 | 24.10 ms | median of the 5 pass-level medians (`summary.medians.hfsNative`, `js-paired-passes.json`) |
+| JavaScript | Like-for-like overhead | 2026-09-10 | 1.51x | as published; "Precision" row reads "1.51–1.58 (5 passes)" (:891) | :890, :891 | -- | -- |
+| Python | Overhead | 2026-09-10 | 10.7x | "XXhfs overhead vs classical" (:843); "the quotient of two medians from a single invocation" (:849); "Precision" row reads "single run" (:891) | :843, :849, :890, :891 | -- | -- |
+| Rust | Overhead | 2026-09-10 | 1.24x | as published | :874, :890 | -- | -- |
+| Nim | Overhead | 2026-09-08 | 1.127x (range 1.117–1.141) | "Paired overhead" (:864); also given as 1.13x with "Precision" "1.12–1.14 (5 passes)" (:890, :891) | :864, :890, :891 | -- | -- |
+
+Every value in the "This run" column is higher than the published value in the same row. No
+delta, ratio or factor between a published value and a figure from this run is computed anywhere in
+this file, and it is not claimed that any published value was computed with the same statistic as
+the corresponding figure from this run. The paper itself states that "absolute latencies are not
+comparable between the two sessions" and that "this machine ran roughly twice as fast on 10
+September as on 8 September, which is well within the drift documented below"
+(research-paper.md:651). The paper's "Paired sampling" row reads "no" for Python (:892); this
+run's Python harness, as revised in this task's Step 1, interleaves the classical and hybrid
+handshakes per iteration.
 
 ## Wire sizes
 
@@ -121,6 +131,5 @@ node benchmarks/paired-passes.mjs
 
 The raw output of the run reported here is in
 `pq-noise-artifacts/benchmarks/2026-09-17/js-paired-passes.json`. An older copy lives in
-`paired-passes-results.json`. The previous version of this file reported a +4.9x figure from an
-X-Wing build measured across mismatched backends; the table earlier in this document supersedes
-it.
+`paired-passes-results.json`. An earlier version of this file reported a +4.9x figure; that figure is
+retracted (it was measured on an X-Wing build across mismatched backends) and is not a result.
