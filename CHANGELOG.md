@@ -13,7 +13,7 @@ This adds a second connection encrypter alongside the existing classical `noise(
 | `noiseHFS(init?)` | function | Factory for the XXhfs connection encrypter. Drop-in replacement for `noise()` in `connectionEncrypters`. |
 | `NoiseHFS` | class | The `ConnectionEncrypter` implementation for `/noise-mlkem768-hfs/0.2.0`. |
 | `NoiseHFSInit` | type | Init options for `noiseHFS()`: `staticNoiseKey`, `kemBackend`, `extensions`, `crypto`, `prologueBytes`. |
-| `pqcKem` | object | Default ML-KEM-768 (FIPS 203) KEM backend (ML-KEM-768 + X25519) via `@noble/post-quantum`. |
+| `pqcKem` | object | Default ML-KEM-768 (FIPS 203) KEM backend via `@noble/post-quantum`. |
 | `pqcCrypto` | object | Combined `ICryptoInterface` + `IKem` (pureJsCrypto + pqcKem). |
 | `IKem` | type | Interface for KEM backends. |
 | `KemKeyPair` | type | `{ publicKey: Uint8Array, secretKey: Uint8Array }` |
@@ -47,9 +47,9 @@ This adds a second connection encrypter alongside the existing classical `noise(
 
 - **Protocol name:** `Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256`
 - **libp2p protocol ID:** `/noise-mlkem768-hfs/0.2.0`
-- **KEM:** ML-KEM-768 (FIPS 203) = ML-KEM-768 + X25519 (IETF draft-connolly-cfrg-xwing-kem)
-- **Wire overhead vs classical XX:** +2,352 bytes per handshake (empty payload)
-- **Latency overhead vs classical XX:** approximately +35 ms (pure JS, no WASM)
+- **KEM:** raw ML-KEM-768 (FIPS 203) in the HFS `e1` and `ekem1` tokens; classical security comes from the X25519 DH tokens XX already has (`ee`, `es`, `se`)
+- **Wire overhead vs classical XX:** +2,288 bytes per handshake (empty payload): 2,480 B (1,216 + 1,200 + 64) against 192 B (32 + 96 + 64)
+- **Latency overhead vs classical XX:** see `benchmarks/results.md`, which also explains why the comparison has to hold the crypto backend constant
 - **Quantum safety:** forward secrecy is secure if either X25519 or ML-KEM-768 is unbroken
 
 #### Compatibility notes
@@ -58,15 +58,9 @@ This adds a second connection encrypter alongside the existing classical `noise(
 - Identity authentication (Ed25519 signatures) is unchanged. Full post-quantum authentication via ML-DSA is tracked in upstream js-libp2p PR #3432. `NoiseHFS` will support it automatically when that lands.
 - Node.js v22 does not yet expose ML-KEM-768 via `node:crypto.subtle`. The KEM runs in pure JS for now. `src/crypto/pqc.node.ts` documents the native upgrade path.
 
-#### Benchmark reference
+#### Benchmarks
 
-Measured on Node.js v22.17.1, Windows 11 x64, pure JS:
-
-| | ops/s | ms/op |
-|--|------:|------:|
-| Classical XX handshake | 114 | 8.75 |
-| XXhfs handshake | 23 | 44.18 |
-| ML-KEM-768 (FIPS 203) full round-trip | 47 | 21.43 |
+Measured figures, method and caveats are in `benchmarks/results.md` (paired passes via `benchmarks/paired-passes.mjs`).
 
 ---
 
