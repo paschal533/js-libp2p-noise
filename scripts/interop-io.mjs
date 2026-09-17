@@ -72,9 +72,10 @@ export async function sendGreeting (connection) {
 }
 
 export async function readGreeting (connection) {
+  const decoder = new TextDecoder()
   let text = ''
   for await (const chunk of connection) {
-    text += new TextDecoder().decode(chunk instanceof Uint8Array ? chunk : chunk.subarray())
+    text += decoder.decode(chunk instanceof Uint8Array ? chunk : chunk.subarray(), { stream: true })
     const nl = text.indexOf('\n')
     if (nl >= 0) {
       const line = text.slice(0, nl)
