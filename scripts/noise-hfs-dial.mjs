@@ -12,7 +12,7 @@ import { defaultLogger } from '@libp2p/logger'
 import { peerIdFromPrivateKey } from '@libp2p/peer-id'
 import { ipPortToMultiaddr } from '@libp2p/utils'
 import { multiaddr } from '@multiformats/multiaddr'
-import { TCPSocketConnection, parsePort, createNoiseHFS, sendGreeting, readGreeting, fail } from './interop-io.mjs'
+import { TCPSocketConnection, parsePort, createNoiseHFS, sendGreeting, readGreeting, fail, exitAfterFlush } from './interop-io.mjs'
 
 async function main () {
   const PORT = parsePort(process.argv.slice(2), 9999)
@@ -40,4 +40,4 @@ async function main () {
   await connection.close()
 }
 
-main().then(() => process.exit(0), fail)
+main().then(() => exitAfterFlush(0), fail)

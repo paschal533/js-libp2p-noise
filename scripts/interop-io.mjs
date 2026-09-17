@@ -87,7 +87,14 @@ export async function readGreeting (connection) {
   throw new Error('connection closed before a greeting arrived')
 }
 
+// process.exit() straight after a write can drop output still buffered for a
+// pipe, so exit only from the callback of a final empty write to each stream.
+export function exitAfterFlush (code) {
+  process.exitCode = code
+  process.stdout.write('', () => process.stderr.write('', () => process.exit(code)))
+}
+
 export function fail (err) {
   process.stderr.write(`ERROR ${err?.message ?? err}\n`)
-  process.exit(1)
+  exitAfterFlush(1)
 }
