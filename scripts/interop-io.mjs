@@ -1,12 +1,18 @@
 /**
- * Shared pieces of the cross-implementation interop harness: a TCP socket
- * adapter, port parsing, and the one-line greeting exchange every
- * implementation's harness speaks (listener sends first).
+ * Shared pieces of the cross-implementation interop harness: NoiseHFS setup,
+ * a TCP socket adapter, port parsing, and the one-line greeting exchange
+ * every implementation's harness speaks (listener sends first).
  */
+import { defaultLogger } from '@libp2p/logger'
 import { AbstractMultiaddrConnection } from '@libp2p/utils'
+import { NoiseHFS } from '../dist/src/noise-hfs.js'
 
 export const IMPL = 'JS'
 export const GREETING_PREFIX = 'hello from '
+
+export function createNoiseHFS (privateKey, peerId) {
+  return new NoiseHFS({ privateKey, peerId, logger: defaultLogger(), upgrader: { getStreamMuxers: () => new Map() } })
+}
 
 export class TCPSocketConnection extends AbstractMultiaddrConnection {
   #socket

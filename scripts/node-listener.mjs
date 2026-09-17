@@ -11,17 +11,16 @@ import { defaultLogger } from '@libp2p/logger'
 import { peerIdFromPrivateKey } from '@libp2p/peer-id'
 import { ipPortToMultiaddr } from '@libp2p/utils'
 import { multiaddr } from '@multiformats/multiaddr'
-import { NoiseHFS } from '../dist/src/noise-hfs.js'
-import { TCPSocketConnection, parsePort, sendGreeting, readGreeting, fail } from './interop-io.mjs'
+import { TCPSocketConnection, parsePort, createNoiseHFS, sendGreeting, readGreeting, fail } from './interop-io.mjs'
 
 async function main () {
   const PORT = parsePort(process.argv.slice(2), 8000)
   const privateKey = await generateKeyPair('Ed25519')
   const peerId = peerIdFromPrivateKey(privateKey)
-  const noiseHfs = new NoiseHFS({ privateKey, peerId, logger: defaultLogger(), upgrader: { getStreamMuxers: () => new Map() } })
+  const noiseHfs = createNoiseHFS(privateKey, peerId)
   console.log(`LOCAL ${peerId}`)
 
-  const server = net.createServer({ pauseOnConnect: false })
+  const server = net.createServer()
   const socket = await new Promise((resolve, reject) => {
     server.once('connection', resolve)
     server.once('error', reject)
