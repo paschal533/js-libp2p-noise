@@ -51,6 +51,7 @@ export class TCPSocketConnection extends AbstractMultiaddrConnection {
 
 export function parsePort (argv, fallback) {
   const i = argv.indexOf('--port')
+  if (i >= 0 && argv[i + 1] === undefined) throw new Error('--port requires a value')
   const raw = i >= 0 ? argv[i + 1] : argv.find(a => /^\d+$/.test(a))
   if (raw === undefined) return fallback
   const port = Number.parseInt(raw, 10)

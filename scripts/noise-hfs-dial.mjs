@@ -15,9 +15,8 @@ import { multiaddr } from '@multiformats/multiaddr'
 import { NoiseHFS } from '../dist/src/noise-hfs.js'
 import { TCPSocketConnection, parsePort, sendGreeting, readGreeting, fail } from './interop-io.mjs'
 
-const PORT = parsePort(process.argv.slice(2), 9999)
-
 async function main () {
+  const PORT = parsePort(process.argv.slice(2), 9999)
   const privateKey = await generateKeyPair('Ed25519')
   const peerId = peerIdFromPrivateKey(privateKey)
   const noiseHfs = new NoiseHFS({ privateKey, peerId, logger: defaultLogger(), upgrader: { getStreamMuxers: () => new Map() } })
