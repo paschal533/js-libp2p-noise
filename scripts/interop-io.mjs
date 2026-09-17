@@ -60,6 +60,7 @@ export function parsePort (argv, fallback) {
   if (i >= 0 && argv[i + 1] === undefined) throw new Error('--port requires a value')
   const raw = i >= 0 ? argv[i + 1] : argv.find(a => /^\d+$/.test(a))
   if (raw === undefined) return fallback
+  if (!/^\d+$/.test(raw)) throw new Error(`invalid port ${raw}`)
   const port = Number.parseInt(raw, 10)
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(`invalid port ${raw}`)
   return port
