@@ -46,7 +46,7 @@ This adds a second connection encrypter alongside the existing classical `noise(
 #### Protocol details
 
 - **Protocol name:** `Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256`
-- **libp2p protocol ID:** `/noise-mlkem768-hfs/0.2.0`
+- **libp2p protocol ID:** `/noise-mlkem768-hfs/0.2.0` (what this implementation ships; `libp2p/specs#727` writes `0.1.0` and lists the identifier string as an open issue, so this will follow whatever the spec settles on)
 - **KEM:** raw ML-KEM-768 (FIPS 203) in the HFS `e1` and `ekem1` tokens; classical security comes from the X25519 DH tokens XX already has (`ee`, `es`, `se`)
 - **Wire overhead vs classical XX:** +2,288 bytes per handshake (empty payload): 2,480 B (1,216 + 1,200 + 64) against 192 B (32 + 96 + 64)
 - **Latency overhead vs classical XX:** see `benchmarks/results.md`, which also explains why the comparison has to hold the crypto backend constant

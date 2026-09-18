@@ -1,7 +1,7 @@
 # Noise HFS Implementation Spec
 
 **Protocol:** `Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256`  
-**libp2p protocol ID:** `/noise-mlkem768-hfs/0.2.0`  
+**libp2p protocol ID:** `/noise-mlkem768-hfs/0.2.0` (what this implementation ships; see §3.1)  
 **Status:** Prototype / research implementation  
 **Based on:** [Noise HFS spec](https://github.com/noiseprotocol/noise_hfs_spec), PQNoise (ePrint 2022/539), Noise rev 34 §8.2 + FIPS 203
 
@@ -26,7 +26,7 @@ The result is a protocol where forward secrecy is secure if **either** X25519 **
 
 ML-KEM-768 is specified in FIPS 203. The 32-byte shared secret it outputs is fed into `MixKey()`.
 
-An earlier revision of this implementation used X-Wing (ML-KEM-768 combined with X25519 under a SHA3-256 combiner). It was replaced by raw ML-KEM-768 so that the handshake matches the pattern proposed in `libp2p/specs#716` and implemented in `libp2p/rust-libp2p#6481`. The hybrid property is unchanged: X25519 is already present in the XX pattern, so forward secrecy still holds if either primitive survives.
+An earlier revision of this implementation used X-Wing (ML-KEM-768 combined with X25519 under a SHA3-256 combiner). It was replaced by raw ML-KEM-768 so that the handshake matches the pattern implemented in `libp2p/rust-libp2p#6481` and specified in `libp2p/specs#727`. (The change was originally made to match `libp2p/specs#716`, this author's own draft; #716 was closed on 2026-09-18 in favour of #727, which specifies the same raw ML-KEM-768 pattern.) The hybrid property is unchanged: X25519 is already present in the XX pattern, so forward secrecy still holds if either primitive survives.
 
 ---
 
@@ -45,7 +45,11 @@ Noise_XXhfs_25519+MLKEM768_ChaChaPoly_SHA256:
 
 The `e1` token carries the initiator's KEM ephemeral public key. The `ekem1` token carries the responder's KEM encapsulation (ciphertext encrypted under the `ee`-derived key), and mixes the resulting KEM shared secret into the chaining key.
 
+### 3.1 Protocol identifier
+
 Earlier drafts used `ML-KEM-768`, which Noise §8.2 does not permit (algorithm names are alphanumeric plus `/`). Because the name is hashed into `h`, the rename is wire-incompatible, and the protocol id moved to 0.2.0 so mismatched peers fail at negotiation.
+
+`/noise-mlkem768-hfs/0.2.0` is the identifier this implementation ships, not a spec-endorsed one. `libp2p/specs#727`, the Working Draft for this suite, writes `/noise-mlkem768-hfs/0.1.0` and lists the identifier string as the first of its open issues. This implementation will follow whatever #727 settles on.
 
 ---
 
