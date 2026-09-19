@@ -71,6 +71,22 @@ export async function sendGreeting (connection) {
   console.log(`SENT ${GREETING_PREFIX}${IMPL}`)
 }
 
+// A greeting is "hello from <Impl>\n", under 32 bytes. The cap is generous
+// enough that no legitimate peer can reach it, and small enough that a peer
+// which completed the handshake and then floods newline-free data cannot grow
+// the accumulator until the process is OOM-killed. Completing XXhfs proves the
+// peer holds some libp2p identity, not that it is friendly.
+export const MAX_GREETING_BYTES = 1024
+
+// The greeting is peer-controlled and the RECV line lands in a committed run
+// log that humans later read with `cat`. Escape control characters so ANSI CSI
+// and OSC sequences cannot rewrite a reviewer's terminal. A legitimate
+// "hello from <Impl>" contains none of these, so the runner's grep contract
+// (an exact match on `RECV hello from <Impl>`) is unchanged.
+export function printableGreeting (line) {
+  return line.replace(/\p{C}/gu, ch => `\\x${ch.codePointAt(0).toString(16).padStart(2, '0')}`)
+}
+
 export async function readGreeting (connection) {
   const decoder = new TextDecoder()
   let text = ''
@@ -79,11 +95,14 @@ export async function readGreeting (connection) {
     const nl = text.indexOf('\n')
     if (nl >= 0) {
       const line = text.slice(0, nl)
-      console.log(`RECV ${line}`)
+      console.log(`RECV ${printableGreeting(line)}`)
       if (!line.startsWith(GREETING_PREFIX) || line.length === GREETING_PREFIX.length) {
         throw new Error(`unexpected greeting ${JSON.stringify(line)}`)
       }
       return line
+    }
+    if (text.length > MAX_GREETING_BYTES) {
+      throw new Error(`greeting exceeded ${MAX_GREETING_BYTES} bytes without a newline`)
     }
   }
   throw new Error('connection closed before a greeting arrived')
