@@ -26,18 +26,12 @@ import { noiseHFS } from '../dist/src/noise-hfs.js'
 import { pqcKem } from '../dist/src/crypto/pqc.js'
 import { KemKeypairPool } from '../dist/src/crypto/pool.js'
 
-// Optional WASM backend, only available after `pnpm build:wasm`
-let pqcKemWasm = null
-let pqcCryptoWasm = null
-let initWasmKem = null
-try {
-  const wasmMod = await import('../dist/src/crypto/pqc.wasm.js')
-  pqcKemWasm = wasmMod.pqcKemWasm
-  pqcCryptoWasm = wasmMod.pqcCryptoWasm
-  initWasmKem = wasmMod.initWasmKem
-} catch {
-  // WASM not built yet; run `pnpm build:wasm` to enable
-}
+// There is no WebAssembly KEM backend. src/crypto/pqc.wasm.ts is an alias for
+// the pure-JS noble path, so it imports successfully and is the same object as
+// pqcKem. This harness used to import it inside a try/catch that treated
+// success as "WASM is available" and printed rows carrying a WASM label on
+// pure-JS measurements. Reporting a WASM figure again requires a real backend
+// first (see src/crypto/pqc.wasm.ts).
 
 // ─── Fixture peers (same keys as benchmarks/benchmark.js) ────────────────────
 
@@ -137,35 +131,9 @@ async function runKemBenchmarks () {
     printRow('full KEM round-trip [pool, no keygen]', r.opsPerSec, r.avgMs)
   }
 
-  // WASM backend (only if built)
-  if (pqcKemWasm !== null) {
-    await initWasmKem()
-    {
-      const r = await timedLoop(() => pqcKemWasm.generateKemKeyPair(), { iterations: 100, warmup: 10 })
-      printRow('generateKemKeyPair [WASM]', r.opsPerSec, r.avgMs)
-    }
-    {
-      const { publicKey } = pqcKemWasm.generateKemKeyPair()
-      const r = await timedLoop(() => pqcKemWasm.encapsulate(publicKey), { iterations: 100, warmup: 10 })
-      printRow('encapsulate [WASM]', r.opsPerSec, r.avgMs)
-    }
-    {
-      const kp = pqcKemWasm.generateKemKeyPair()
-      const { cipherText } = pqcKemWasm.encapsulate(kp.publicKey)
-      const r = await timedLoop(() => pqcKemWasm.decapsulate(cipherText, kp.secretKey), { iterations: 100, warmup: 10 })
-      printRow('decapsulate [WASM]', r.opsPerSec, r.avgMs)
-    }
-    {
-      const r = await timedLoop(() => {
-        const kp = pqcKemWasm.generateKemKeyPair()
-        const { cipherText } = pqcKemWasm.encapsulate(kp.publicKey)
-        pqcKemWasm.decapsulate(cipherText, kp.secretKey)
-      }, { iterations: 100, warmup: 10 })
-      printRow('full KEM round-trip [WASM]', r.opsPerSec, r.avgMs)
-    }
-  } else {
-    console.log('  (WASM backend not built; run `pnpm build:wasm` to enable)')
-  }
+  console.log('')
+  console.log('  All rows above are pure JavaScript (@noble/post-quantum).')
+  console.log('  There is no WebAssembly KEM backend in this repository.')
 }
 
 // ─── 2. Handshake benchmarks ─────────────────────────────────────────────────
@@ -209,21 +177,8 @@ async function runHandshakeBenchmarks () {
     printRow('Noise_XXhfs (ML-KEM-768 hybrid)', r.opsPerSec, r.avgMs)
   }
 
-  // Noise_XXhfs with WASM backend
-  if (pqcCryptoWasm !== null) {
-    const hfsWasmInit = noiseHFS({ crypto: pqcCryptoWasm })(makeComponents(initiatorPrivKey, initiatorPeerId))
-    const hfsWasmResp = noiseHFS({ crypto: pqcCryptoWasm })(makeComponents(responderPrivKey, responderPeerId))
-
-    const r = await timedLoop(async () => {
-      const [inConn, outConn] = multiaddrConnectionPair()
-      await Promise.all([
-        hfsWasmInit.secureOutbound(outConn, { remotePeer: responderPeerId }),
-        hfsWasmResp.secureInbound(inConn, { remotePeer: initiatorPeerId })
-      ])
-    }, { iterations: 30, warmup: 5 })
-
-    printRow('Noise_XXhfs (WASM KEM)', r.opsPerSec, r.avgMs)
-  }
+  // No WASM row here either: pqcCryptoWasm is pureJsCrypto plus the pure-JS
+  // KEM, so a third row would repeat the second under a different name.
 }
 
 // ─── 3. Wire-size report ──────────────────────────────────────────────────────

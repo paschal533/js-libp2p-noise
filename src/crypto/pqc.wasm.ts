@@ -1,12 +1,18 @@
 /**
- * ML-KEM-768 WASM backend, currently stubbed to pure-JS noble.
+ * Compatibility alias for the ML-KEM-768 KEM. There is no WebAssembly
+ * backend: every export here is the pure-JS noble path from `pqc.ts`, and
+ * `initWasmKem()` is a no-op.
  *
- * The WASM binary was compiled for X-Wing. To restore WASM acceleration after
- * migration, update src-wasm/src/lib.rs to export mlkem768_keygen/encapsulate/
- * decapsulate and run `pnpm run build:wasm`.
+ * The WASM module this file is named after was compiled for X-Wing and was
+ * never part of this repository. It was not ported when the implementation
+ * moved to raw ML-KEM-768, so nothing in `src/` imports this file. An earlier
+ * header sent readers to a Rust source directory and a pnpm build script,
+ * neither of which has ever existed here, and callers that treated an import
+ * failure as "no WASM build" were silently measuring pure JS instead.
  *
- * The stub exports satisfy all callers without behavioural change; the wire
- * format is identical to pqcKem since both use the same ML-KEM-768 operations.
+ * If a real WASM backend is reintroduced, commit its source and a build
+ * script rather than a prebuilt binary, and only then reinstate a separate
+ * WASM label anywhere that reports numbers.
  */
 
 import { pureJsCrypto } from './js.js'
