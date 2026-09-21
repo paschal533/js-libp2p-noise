@@ -16,14 +16,23 @@
  *
  * ML-DSA identity integration (PR #3432 coordination):
  *   This class currently uses Ed25519 for peer identity (the NoiseHandshakePayload
- *   signature). For a fully post-quantum handshake, the identity layer also needs
- *   to be upgraded to ML-DSA (FIPS 204) once PR #3432 lands in js-libp2p.
+ *   signature). PR #3432 will let that be ML-DSA-65 (FIPS 204) instead.
+ *
+ *   That does NOT give the handshake post-quantum authentication. While the Noise
+ *   static key is X25519, a quantum-capable adversary never has to forge a
+ *   signature: it handshakes honestly, recovers the peer's static key with Shor's
+ *   algorithm, and replays the peer's genuine signature while doing the static-key
+ *   Diffie-Hellman itself. PQ authentication additionally needs a KEM contribution
+ *   bound to the static keys (a handshake-pattern change, not an identity change),
+ *   or an identity signature covering the handshake hash rather than only the
+ *   static key.
  *
  *   When PR #3432 merges:
  *     - Peers with KeyType.MLDSA (= 4) will sign the static key with MLDSA65
  *     - MLDSA65 signatures are 3,309 bytes vs Ed25519 at 64 bytes
- *     - The full-PQ handshake (XXhfs + MLDSA65 identity both sides) comes to
- *       roughly 9,400 bytes total wire overhead per connection
+ *     - XXhfs + MLDSA65 identity on both sides comes to roughly 13,100 bytes of
+ *       total wire cost per connection (PQ confidentiality and PQ identity keys,
+ *       still classical authentication)
  *     - NoiseHFS.secureOutbound/secureInbound will handle this automatically
  *       because createHandshakePayload/decodeHandshakePayload delegate to
  *       privateKey.sign() which is key-type aware
