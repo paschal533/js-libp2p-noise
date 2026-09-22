@@ -78,8 +78,10 @@ rather than asserted.
 message NoiseExtensions {
     repeated bytes webtransport_certhashes = 1;
     repeated string stream_muxers = 2;
-    repeated string security_protocols = 3;
-    bytes transcript_sig = 4;
+    // Field 3 is skipped: py-libp2p already ships it as its own early_data
+    // extension. See Cross-implementation vectors below.
+    repeated string security_protocols = 4;
+    bytes transcript_sig = 5;
 }
 ```
 
