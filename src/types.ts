@@ -1,5 +1,6 @@
 import type { Nonce } from './nonce.js'
 import type { NoiseExtensions, NoiseHandshakePayload } from './proto/payload.js'
+import type { TranscriptBindingConfig } from './transcript-binding.js'
 import type { ConnectionEncrypter, Logger, PrivateKey, PublicKey } from '@libp2p/interface'
 import type { LengthPrefixedStream } from '@libp2p/utils'
 import type { Uint8ArrayList } from 'uint8arraylist'
@@ -27,6 +28,12 @@ export interface HandshakeParams {
   s: KeyPair
   remoteIdentityKey?: PublicKey
   extensions?: NoiseExtensions
+  /**
+   * When set, the handshake payload commits to this peer's configured
+   * security protocols, and the negotiated protocol is checked against what
+   * the two offers imply. See TRANSCRIPT_BINDING_SPEC.md.
+   */
+  transcriptBinding?: TranscriptBindingConfig
 }
 
 export interface HandshakeResult {

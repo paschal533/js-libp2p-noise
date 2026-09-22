@@ -84,6 +84,13 @@ export type { NoiseHFSInit } from './noise-hfs.js'
 export type { HfsHandshakeParams } from './performHandshake-hfs.js'
 export type { NoiseInit, NoiseExtensions, KeyPair }
 
+// Transcript-bound security protocol negotiation. DowngradeDetectedError is
+// exported so callers can distinguish a detected downgrade from an ordinary
+// handshake failure without hardcoding the error code string.
+export { DowngradeDetectedError } from './transcript-binding.js'
+export type { TranscriptBindingInit } from './noise.js'
+export type { TranscriptBindingMode, TranscriptBindingVariant } from './transcript-binding.js'
+
 export interface NoiseComponents {
   peerId: PeerId
   privateKey: PrivateKey

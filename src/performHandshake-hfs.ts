@@ -17,6 +17,7 @@ import {
 } from './logger.js'
 import { ZEROLEN } from './protocol.js'
 import { XXhfsHandshakeState, NOISE_HFS_PROTOCOL_NAME } from './protocol-pqc.js'
+import { bindingFor, checkNegotiation, negotiationCheckFor } from './transcript-binding.js'
 import { createHandshakePayload, decodeHandshakePayload } from './utils.js'
 import type { IKem } from './kem.js'
 import type { HandshakeResult, HandshakeParams } from './types.js'
@@ -40,9 +41,8 @@ export interface HfsHandshakeParams extends HandshakeParams {
  *   decrypt → cs2 (responder→initiator direction)
  */
 export async function performHandshakeHFSInitiator (init: HfsHandshakeParams, options?: AbortOptions): Promise<HandshakeResult> {
-  const { log, connection, crypto, privateKey, prologue, s, remoteIdentityKey, extensions, kem } = init
+  const { log, connection, crypto, privateKey, prologue, s, remoteIdentityKey, extensions, kem, transcriptBinding } = init
 
-  const payload = await createHandshakePayload(privateKey, s.publicKey, extensions)
   const xx = new XXhfsHandshakeState({
     crypto,
     kem,
@@ -65,11 +65,22 @@ export async function performHandshakeHFSInitiator (init: HfsHandshakeParams, op
   logRemoteStaticKey(xx.rs, log)
 
   log.trace("Initiator going to check remote's signature...")
-  const receivedPayload = await decodeHandshakePayload(plaintext, xx.rs, remoteIdentityKey)
+  const receivedPayload = await decodeHandshakePayload(plaintext, xx.rs, remoteIdentityKey, bindingFor(transcriptBinding, xx.payloadHash))
   log.trace('All good with the signature!')
 
+  // Checked before message C is written: no reason to hand our own signed
+  // payload to a peer we are about to reject.
+  checkNegotiation({
+    ...negotiationCheckFor(transcriptBinding, log),
+    initiator: true,
+    remoteExtensions: receivedPayload.extensions
+  })
+
   log.trace('HFS Stage 2 - Initiator sending third handshake message (s, se).')
-  await connection.write(xx.writeMessageC(payload), options)
+  // Built here so it can commit to the transcript hash it is encrypted under.
+  const prefix = xx.beginMessageC()
+  const payload = await createHandshakePayload(privateKey, s.publicKey, extensions, bindingFor(transcriptBinding, xx.payloadHash))
+  await connection.write(xx.finishMessage(prefix, payload), options)
   log.trace('HFS Stage 2 - Initiator sent message with signed payload.')
 
   const [cs1, cs2] = xx.ss.split()
@@ -95,9 +106,8 @@ export async function performHandshakeHFSInitiator (init: HfsHandshakeParams, op
  *   decrypt → cs1 (initiator→responder direction)
  */
 export async function performHandshakeHFSResponder (init: HfsHandshakeParams, options?: AbortOptions): Promise<HandshakeResult> {
-  const { log, connection, crypto, privateKey, prologue, s, remoteIdentityKey, extensions, kem } = init
+  const { log, connection, crypto, privateKey, prologue, s, remoteIdentityKey, extensions, kem, transcriptBinding } = init
 
-  const payload = await createHandshakePayload(privateKey, s.publicKey, extensions)
   const xx = new XXhfsHandshakeState({
     crypto,
     kem,
@@ -114,14 +124,23 @@ export async function performHandshakeHFSResponder (init: HfsHandshakeParams, op
   logRemoteEphemeralKey(xx.re, log)
 
   log.trace('HFS Stage 1 - Responder sending message (e, ee, ekem1, s, es).')
-  await connection.write(xx.writeMessageB(payload), options)
+  // Built here so it can commit to the transcript hash it is encrypted under.
+  const prefix = xx.beginMessageB()
+  const payload = await createHandshakePayload(privateKey, s.publicKey, extensions, bindingFor(transcriptBinding, xx.payloadHash))
+  await connection.write(xx.finishMessage(prefix, payload), options)
   log.trace('HFS Stage 1 - Responder sent the second handshake message with signed payload.')
   logLocalEphemeralKeys(xx.e, log)
 
   log.trace('HFS Stage 2 - Responder waiting for third handshake message (s, se)...')
   const plaintext = xx.readMessageC(await connection.read(options))
   log.trace('HFS Stage 2 - Responder received the message, finished handshake.')
-  const receivedPayload = await decodeHandshakePayload(plaintext, xx.rs, remoteIdentityKey)
+  const receivedPayload = await decodeHandshakePayload(plaintext, xx.rs, remoteIdentityKey, bindingFor(transcriptBinding, xx.payloadHash))
+
+  checkNegotiation({
+    ...negotiationCheckFor(transcriptBinding, log),
+    initiator: false,
+    remoteExtensions: receivedPayload.extensions
+  })
 
   const [cs1, cs2] = xx.ss.split()
   logCipherState(cs1, cs2, log)

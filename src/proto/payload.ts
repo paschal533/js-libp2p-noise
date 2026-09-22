@@ -1,3 +1,11 @@
+/* eslint-disable import/export */
+/* eslint-disable complexity */
+/* eslint-disable @typescript-eslint/no-namespace */
+/* eslint-disable @typescript-eslint/no-unnecessary-boolean-literal-compare */
+/* eslint-disable @typescript-eslint/no-empty-interface */
+/* eslint-disable import/consistent-type-specifier-style */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import { decodeMessage, encodeMessage, MaxLengthError, message } from 'protons-runtime'
 import { alloc as uint8ArrayAlloc } from 'uint8arrays/alloc'
 import type { Codec, DecodeOptions } from 'protons-runtime'
@@ -6,6 +14,8 @@ import type { Uint8ArrayList } from 'uint8arraylist'
 export interface NoiseExtensions {
   webtransportCerthashes: Uint8Array[]
   streamMuxers: string[]
+  securityProtocols: string[]
+  transcriptSig: Uint8Array
 }
 
 export namespace NoiseExtensions {
@@ -32,13 +42,27 @@ export namespace NoiseExtensions {
           }
         }
 
+        if (obj.securityProtocols != null) {
+          for (const value of obj.securityProtocols) {
+            w.uint32(34)
+            w.string(value)
+          }
+        }
+
+        if ((obj.transcriptSig != null && obj.transcriptSig.byteLength > 0)) {
+          w.uint32(42)
+          w.bytes(obj.transcriptSig)
+        }
+
         if (opts.lengthDelimited !== false) {
           w.ldelim()
         }
       }, (reader, length, opts = {}) => {
         const obj: any = {
           webtransportCerthashes: [],
-          streamMuxers: []
+          streamMuxers: [],
+          securityProtocols: [],
+          transcriptSig: uint8ArrayAlloc(0)
         }
 
         const end = length == null ? reader.len : reader.pos + length
@@ -61,6 +85,18 @@ export namespace NoiseExtensions {
               }
 
               obj.streamMuxers.push(reader.string())
+              break
+            }
+            case 4: {
+              if (opts.limits?.securityProtocols != null && obj.securityProtocols.length === opts.limits.securityProtocols) {
+                throw new MaxLengthError('Decode error - map field "securityProtocols" had too many elements')
+              }
+
+              obj.securityProtocols.push(reader.string())
+              break
+            }
+            case 5: {
+              obj.transcriptSig = reader.bytes()
               break
             }
             default: {

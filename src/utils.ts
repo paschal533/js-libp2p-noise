@@ -7,30 +7,75 @@ import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { CHACHA_TAG_LENGTH, NOISE_MSG_MAX_LENGTH_BYTES, NOISE_MSG_MAX_LENGTH_BYTES_WITHOUT_TAG } from './constants.ts'
 import { uint16BEEncode, uint16BEDecode } from './encoder.ts'
 import { NoiseHandshakePayload } from './proto/payload.js'
+import { canonicalProtocols, createTranscriptBinding, hasTranscriptBinding, transcriptSignaturePayload } from './transcript-binding.js'
 import type { MetricsRegistry } from './metrics.ts'
 import type { NoiseExtensions } from './proto/payload.js'
+import type { TranscriptBindingVariant } from './transcript-binding.js'
 import type { HandshakeResult } from './types.ts'
 import type { AbortOptions, MessageStream, PrivateKey, PublicKey, StreamCloseEvent } from '@libp2p/interface'
 import type { SendResult } from '@libp2p/utils'
 
+/**
+ * Binds a handshake payload to this session. Supplied only when transcript
+ * binding is enabled; see TRANSCRIPT_BINDING_SPEC.md.
+ */
+export interface TranscriptBindingInit {
+  /**
+   * The Noise transcript hash this payload is encrypted under.
+   */
+  payloadHash: Uint8Array
+  /**
+   * The security protocols this peer has configured, in preference order.
+   */
+  protocols: string[]
+  /**
+   * `extension` signs the list separately and leaves identity_sig untouched,
+   * so unmodified peers still interoperate. `identity` folds the binding into
+   * identity_sig instead, which is smaller but changes what every libp2p peer
+   * verifies.
+   */
+  variant: TranscriptBindingVariant
+}
+
 export async function createHandshakePayload (
   privateKey: PrivateKey,
   staticPublicKey: Uint8Array | Uint8ArrayList,
-  extensions?: NoiseExtensions
+  extensions?: NoiseExtensions,
+  binding?: TranscriptBindingInit
 ): Promise<Uint8Array | Uint8ArrayList> {
-  const identitySig = await privateKey.sign(getSignaturePayload(staticPublicKey))
+  const identitySig = await privateKey.sign(
+    getSignaturePayload(staticPublicKey, binding?.variant === 'identity' ? binding : undefined)
+  )
+
+  let payloadExtensions = extensions
+
+  if (binding?.variant === 'extension') {
+    payloadExtensions = {
+      webtransportCerthashes: extensions?.webtransportCerthashes ?? [],
+      streamMuxers: extensions?.streamMuxers ?? [],
+      ...await createTranscriptBinding(privateKey, binding.payloadHash, binding.protocols)
+    }
+  } else if (binding?.variant === 'identity') {
+    payloadExtensions = {
+      webtransportCerthashes: extensions?.webtransportCerthashes ?? [],
+      streamMuxers: extensions?.streamMuxers ?? [],
+      securityProtocols: binding.protocols,
+      transcriptSig: new Uint8Array(0)
+    }
+  }
 
   return NoiseHandshakePayload.encode({
     identityKey: publicKeyToProtobuf(privateKey.publicKey),
     identitySig,
-    extensions
+    extensions: payloadExtensions
   })
 }
 
 export async function decodeHandshakePayload (
   payloadBytes: Uint8Array | Uint8ArrayList,
   remoteStaticKey?: Uint8Array | Uint8ArrayList,
-  remoteIdentityKey?: PublicKey
+  remoteIdentityKey?: PublicKey,
+  binding?: Pick<TranscriptBindingInit, 'payloadHash' | 'variant'>
 ): Promise<NoiseHandshakePayload> {
   try {
     const payload = NoiseHandshakePayload.decode(payloadBytes)
@@ -44,10 +89,28 @@ export async function decodeHandshakePayload (
       throw new Error('Remote static does not exist')
     }
 
-    const signaturePayload = getSignaturePayload(remoteStaticKey)
+    // Under the identity variant the protocol list is covered by identity_sig
+    // itself, so it has to be folded in here, using the list as received. A
+    // tampered list simply fails the signature check below.
+    const identityBinding = binding?.variant === 'identity'
+      ? { payloadHash: binding.payloadHash, protocols: payload.extensions?.securityProtocols ?? [] }
+      : undefined
+
+    const signaturePayload = getSignaturePayload(remoteStaticKey, identityBinding)
 
     if (!(await publicKey.verify(signaturePayload, payload.identitySig))) {
       throw new Error('Invalid payload signature')
+    }
+
+    if (binding?.variant === 'extension' && hasTranscriptBinding(payload.extensions, 'extension')) {
+      const transcriptPayload = transcriptSignaturePayload(
+        binding.payloadHash,
+        payload.extensions?.securityProtocols ?? []
+      )
+
+      if (!(await publicKey.verify(transcriptPayload, payload.extensions?.transcriptSig ?? new Uint8Array(0)))) {
+        throw new Error('Invalid transcript binding signature')
+      }
     }
 
     return payload
@@ -56,8 +119,20 @@ export async function decodeHandshakePayload (
   }
 }
 
-export function getSignaturePayload (publicKey: Uint8Array | Uint8ArrayList): Uint8Array | Uint8ArrayList {
+export function getSignaturePayload (
+  publicKey: Uint8Array | Uint8ArrayList,
+  binding?: Pick<TranscriptBindingInit, 'payloadHash' | 'protocols'>
+): Uint8Array | Uint8ArrayList {
   const prefix = uint8ArrayFromString('noise-libp2p-static-key:')
+
+  if (binding != null) {
+    // Variant B: one signature covering the static key and the session-bound
+    // protocol list.
+    const canonical = canonicalProtocols(binding.protocols)
+    const list = new Uint8ArrayList(prefix, publicKey, binding.payloadHash, canonical)
+
+    return list
+  }
 
   if (publicKey instanceof Uint8Array) {
     return uint8ArrayConcat([prefix, publicKey], prefix.length + publicKey.length)

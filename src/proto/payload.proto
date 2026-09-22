@@ -3,6 +3,14 @@ syntax = "proto3";
 message NoiseExtensions {
     repeated bytes webtransport_certhashes = 1;
     repeated string stream_muxers = 2;
+    // The security protocols this peer has configured, in its own preference
+    // order, and a signature by the identity key binding that list to the
+    // Noise transcript. See TRANSCRIPT_BINDING_SPEC.md.
+    // Numbered 4 and 5, not 3 and 4: py-libp2p already ships field 3 as its
+    // own early_data extension, and renumbering a field another
+    // implementation already uses would break its wire format for no gain.
+    repeated string security_protocols = 4;
+    bytes transcript_sig = 5;
 }
 
 message NoiseHandshakePayload {

@@ -185,12 +185,21 @@ export class XXhfsHandshakeState extends AbstractHandshakeState {
    * Total (empty payload): 32 + 1104 + 48 + 16 = 1200 bytes overhead
    */
   writeMessageB (payload: Uint8Array | Uint8ArrayList): Uint8Array | Uint8ArrayList {
+    return this.finishMessage(this.beginMessageB(), payload)
+  }
+
+  /**
+   * Everything in message B up to the payload. Split out so that a caller
+   * binding the payload to the transcript can read `payloadHash` first.
+   */
+  beginMessageB (): Uint8ArrayList {
     const e = this.writeE()           // 32 bytes
     this.writeEE()                    // MixKey(DH(ee)), no bytes
     const ekem1 = this.writeEkem1()   // 1104 bytes (1088 ct + 16 AEAD)
     const encS = this.writeS()        // 48 bytes (32 static + 16 AEAD)
     this.writeES()                    // MixKey(DH(es)), no bytes
-    return new Uint8ArrayList(e, ekem1, encS, this.ss.encryptAndHash(payload))
+    this.payloadHash = this.ss.h
+    return new Uint8ArrayList(e, ekem1, encS)
   }
 
   /**
@@ -203,6 +212,7 @@ export class XXhfsHandshakeState extends AbstractHandshakeState {
       const ekem1Consumed = this.readEkem1(message, 32)         // 1104 bytes
       const sConsumed = this.readS(message, 32 + ekem1Consumed) // 48 bytes
       this.readES()
+      this.payloadHash = this.ss.h
       return this.ss.decryptAndHash(message.sublist(32 + ekem1Consumed + sConsumed))
     } catch (e) {
       throw new InvalidCryptoExchangeError(`pq-handshake stage 1: ${(e as Error).message}`)
@@ -220,9 +230,26 @@ export class XXhfsHandshakeState extends AbstractHandshakeState {
    * This message is unchanged from the classical XX pattern.
    */
   writeMessageC (payload: Uint8Array | Uint8ArrayList): Uint8Array | Uint8ArrayList {
+    return this.finishMessage(this.beginMessageC(), payload)
+  }
+
+  /**
+   * The s, se part of message C. See beginMessageB().
+   */
+  beginMessageC (): Uint8ArrayList {
     const encS = this.writeS()  // 48 bytes
     this.writeSE()              // MixKey(DH(se)), no bytes
-    return new Uint8ArrayList(encS, this.ss.encryptAndHash(payload))
+    this.payloadHash = this.ss.h
+    return new Uint8ArrayList(encS)
+  }
+
+  /**
+   * Encrypt a payload under the current transcript hash and append it to a
+   * prefix from beginMessageB() or beginMessageC().
+   */
+  finishMessage (prefix: Uint8ArrayList, payload: Uint8Array | Uint8ArrayList): Uint8ArrayList {
+    prefix.append(this.ss.encryptAndHash(payload))
+    return prefix
   }
 
   /**
@@ -232,6 +259,7 @@ export class XXhfsHandshakeState extends AbstractHandshakeState {
     try {
       const sConsumed = this.readS(message, 0)  // 48 bytes
       this.readSE()
+      this.payloadHash = this.ss.h
       return this.ss.decryptAndHash(message.sublist(sConsumed))
     } catch (e) {
       throw new InvalidCryptoExchangeError(`pq-handshake stage 2: ${(e as Error).message}`)

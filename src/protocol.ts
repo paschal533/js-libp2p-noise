@@ -119,6 +119,12 @@ export abstract class AbstractHandshakeState implements IHandshakeState {
   public rs?: Uint8Array | Uint8ArrayList
   public re?: Uint8Array | Uint8ArrayList
   public initiator: boolean
+  /**
+   * The transcript hash the handshake payload is encrypted under, captured at
+   * the point the payload is written or read. Both peers hold the same value
+   * for a given payload, so it is what a transcript-bound signature commits to.
+   */
+  public payloadHash?: Uint8Array
   protected readonly crypto: ICrypto
 
   constructor (init: HandshakeStateInit) {
@@ -248,20 +254,54 @@ export class XXHandshakeState extends AbstractHandshakeState {
 
   // e, ee, s, es
   writeMessageB (payload: Uint8Array | Uint8ArrayList): Uint8Array | Uint8ArrayList {
+    const prefix = this.beginMessageB()
+
+    return this.finishMessage(prefix, payload)
+  }
+
+  /**
+   * The e, ee, s, es part of message B, i.e. everything up to the payload.
+   *
+   * Split out from writeMessageB so that a caller that needs to bind the
+   * payload to the transcript can read `payloadHash` before building it. The
+   * payload is then appended with finishMessage().
+   */
+  beginMessageB (): Uint8ArrayList {
     const e = this.writeE()
     this.writeEE()
     const encS = this.writeS()
     this.writeES()
+    this.payloadHash = this.ss.h
 
-    return new Uint8ArrayList(e, encS, this.ss.encryptAndHash(payload))
+    return new Uint8ArrayList(e, encS)
   }
 
   // s, se
   writeMessageC (payload: Uint8Array | Uint8ArrayList): Uint8Array | Uint8ArrayList {
+    const prefix = this.beginMessageC()
+
+    return this.finishMessage(prefix, payload)
+  }
+
+  /**
+   * The s, se part of message C. See beginMessageB().
+   */
+  beginMessageC (): Uint8ArrayList {
     const encS = this.writeS()
     this.writeSE()
+    this.payloadHash = this.ss.h
 
-    return new Uint8ArrayList(encS, this.ss.encryptAndHash(payload))
+    return new Uint8ArrayList(encS)
+  }
+
+  /**
+   * Encrypt a payload under the current transcript hash and append it to a
+   * message prefix returned by beginMessageB() or beginMessageC().
+   */
+  finishMessage (prefix: Uint8ArrayList, payload: Uint8Array | Uint8ArrayList): Uint8ArrayList {
+    prefix.append(this.ss.encryptAndHash(payload))
+
+    return prefix
   }
 
   // e
@@ -282,6 +322,7 @@ export class XXHandshakeState extends AbstractHandshakeState {
       this.readEE()
       const consumed = this.readS(message, 32)
       this.readES()
+      this.payloadHash = this.ss.h
 
       return this.ss.decryptAndHash(message.sublist(32 + consumed))
     } catch (e) {
@@ -294,6 +335,7 @@ export class XXHandshakeState extends AbstractHandshakeState {
     try {
       const consumed = this.readS(message)
       this.readSE()
+      this.payloadHash = this.ss.h
 
       return this.ss.decryptAndHash(message.sublist(consumed))
     } catch (e) {

@@ -57,13 +57,15 @@ import { wrapCrypto } from './crypto.js'
 import { uint16BEDecode, uint16BEEncode } from './encoder.js'
 import { registerMetrics } from './metrics.js'
 import { performHandshakeHFSInitiator, performHandshakeHFSResponder } from './performHandshake-hfs.js'
+import { toTranscriptBindingConfig } from './transcript-binding.js'
 import { toMessageStream } from './utils.js'
 import type { ICryptoInterface } from './crypto.js'
+import type { NoiseComponents } from './index.js'
 import type { IKem } from './kem.js'
 import type { MetricsRegistry } from './metrics.js'
+import type { NoiseExtensions, TranscriptBindingInit } from './noise.js'
+import type { TranscriptBindingConfig } from './transcript-binding.js'
 import type { HandshakeResult, ICrypto, INoiseConnection, INoiseExtensions, KeyPair } from './types.js'
-import type { NoiseExtensions } from './noise.js'
-import type { NoiseComponents } from './index.js'
 import type { SecuredConnection, PrivateKey, PublicKey, StreamMuxerFactory, SecureConnectionOptions, Logger, MessageStream } from '@libp2p/interface'
 import type { LengthPrefixedStream } from '@libp2p/utils'
 
@@ -82,6 +84,12 @@ export interface NoiseHFSInit {
   extensions?: Partial<NoiseExtensions>
   crypto?: ICryptoInterface
   prologueBytes?: Uint8Array
+  /**
+   * Bind the handshake to the security protocols this peer offered, so that
+   * a downgrade forced during multistream-select is detected. Defaults to
+   * disabled. See TRANSCRIPT_BINDING_SPEC.md.
+   */
+  transcriptBinding?: TranscriptBindingInit
 }
 
 export class NoiseHFS implements INoiseConnection {
@@ -92,12 +100,13 @@ export class NoiseHFS implements INoiseConnection {
   private readonly staticKey: KeyPair
   private readonly kem: IKem
   private readonly extensions?: NoiseExtensions
+  private readonly transcriptBinding?: TranscriptBindingConfig
   private readonly metrics?: MetricsRegistry
   private readonly components: NoiseComponents
   private readonly log: Logger
 
   constructor (components: NoiseComponents, init: NoiseHFSInit = {}) {
-    const { staticNoiseKey, kemBackend, extensions, crypto, prologueBytes } = init
+    const { staticNoiseKey, kemBackend, extensions, crypto, prologueBytes, transcriptBinding } = init
     const { metrics } = components
 
     this.components = components
@@ -117,6 +126,11 @@ export class NoiseHFS implements INoiseConnection {
       this.staticKey = _crypto.generateX25519KeyPair()
     }
     this.prologue = prologueBytes ?? uint8ArrayAlloc(0)
+    this.transcriptBinding = toTranscriptBindingConfig(
+      transcriptBinding,
+      this.protocol,
+      () => { this.metrics?.downgradesDetected.increment() }
+    )
   }
 
   readonly [Symbol.toStringTag] = '@chainsafe/libp2p-noise-hfs'
@@ -226,8 +240,11 @@ export class NoiseHFS implements INoiseConnection {
         extensions: {
           streamMuxers,
           webtransportCerthashes: [],
+          securityProtocols: [],
+          transcriptSig: new Uint8Array(0),
           ...this.extensions
-        }
+        },
+        transcriptBinding: this.transcriptBinding
       }, options)
       this.metrics?.xxHandshakeSuccesses.increment()
     } catch (e: unknown) {
@@ -261,8 +278,11 @@ export class NoiseHFS implements INoiseConnection {
         extensions: {
           streamMuxers,
           webtransportCerthashes: [],
+          securityProtocols: [],
+          transcriptSig: new Uint8Array(0),
           ...this.extensions
-        }
+        },
+        transcriptBinding: this.transcriptBinding
       }, options)
       this.metrics?.xxHandshakeSuccesses.increment()
     } catch (e: unknown) {

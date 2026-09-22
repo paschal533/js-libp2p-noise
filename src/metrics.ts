@@ -27,6 +27,14 @@ export function registerMetrics (metrics: Metrics): MetricsRegistry {
     decryptErrors: metrics.registerCounter(
       'libp2p_noise_decrypt_errors_total', {
         help: 'Total count of noise decrypt errors'
+      }),
+
+    // Counted separately from xxHandshakeErrors: a downgrade is an attack
+    // signal, and burying it in the generic error counter would make the one
+    // thing this mechanism exists to detect invisible in monitoring.
+    downgradesDetected: metrics.registerCounter(
+      'libp2p_noise_security_protocol_downgrades_total', {
+        help: 'Total count of handshakes whose negotiated security protocol contradicted the peers\' signed offers'
       })
   }
 }

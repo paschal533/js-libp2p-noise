@@ -9,10 +9,12 @@ import { wrapCrypto } from './crypto.js'
 import { uint16BEDecode, uint16BEEncode } from './encoder.js'
 import { registerMetrics } from './metrics.js'
 import { performHandshakeInitiator, performHandshakeResponder } from './performHandshake.js'
+import { toTranscriptBindingConfig } from './transcript-binding.js'
 import { toMessageStream } from './utils.ts'
 import type { ICryptoInterface } from './crypto.js'
 import type { NoiseComponents } from './index.js'
 import type { MetricsRegistry } from './metrics.js'
+import type { TranscriptBindingConfig, TranscriptBindingMode, TranscriptBindingVariant } from './transcript-binding.js'
 import type { HandshakeResult, ICrypto, INoiseConnection, INoiseExtensions, KeyPair } from './types.js'
 import type { SecuredConnection, PrivateKey, PublicKey, StreamMuxerFactory, SecureConnectionOptions, Logger, MessageStream } from '@libp2p/interface'
 import type { LengthPrefixedStream } from '@libp2p/utils'
@@ -29,6 +31,32 @@ export interface NoiseInit {
   extensions?: Partial<NoiseExtensions>
   crypto?: ICryptoInterface
   prologueBytes?: Uint8Array
+  /**
+   * Bind the handshake to the security protocols this peer offered, so that a
+   * downgrade forced during multistream-select is detected. Defaults to
+   * disabled. See TRANSCRIPT_BINDING_SPEC.md.
+   */
+  transcriptBinding?: TranscriptBindingInit
+}
+
+export interface TranscriptBindingInit {
+  /**
+   * `enforce` aborts a handshake whose negotiated protocol contradicts the
+   * two signed offers, `warn` logs it, `off` disables the mechanism.
+   */
+  mode?: TranscriptBindingMode
+  /**
+   * Which binding to use. Defaults to `extension`, which stays wire
+   * compatible with peers that do not implement this.
+   */
+  variant?: TranscriptBindingVariant
+  /**
+   * Every security protocol this peer has configured, in preference order,
+   * including the one this instance implements. The caller supplies it
+   * because a connection encrypter does not otherwise know what else the node
+   * offers.
+   */
+  securityProtocols: string[]
 }
 
 export class Noise implements INoiseConnection {
@@ -38,12 +66,13 @@ export class Noise implements INoiseConnection {
   private readonly prologue: Uint8Array
   private readonly staticKey: KeyPair
   private readonly extensions?: NoiseExtensions
+  private readonly transcriptBinding?: TranscriptBindingConfig
   private readonly metrics?: MetricsRegistry
   private readonly components: NoiseComponents
   private readonly log: Logger
 
   constructor (components: NoiseComponents, init: NoiseInit = {}) {
-    const { staticNoiseKey, extensions, crypto, prologueBytes } = init
+    const { staticNoiseKey, extensions, crypto, prologueBytes, transcriptBinding } = init
     const { metrics } = components
 
     this.components = components
@@ -63,6 +92,11 @@ export class Noise implements INoiseConnection {
       this.staticKey = _crypto.generateX25519KeyPair()
     }
     this.prologue = prologueBytes ?? uint8ArrayAlloc(0)
+    this.transcriptBinding = toTranscriptBindingConfig(
+      transcriptBinding,
+      this.protocol,
+      () => { this.metrics?.downgradesDetected.increment() }
+    )
   }
 
   readonly [Symbol.toStringTag] = '@chainsafe/libp2p-noise'
@@ -186,8 +220,11 @@ export class Noise implements INoiseConnection {
         extensions: {
           streamMuxers,
           webtransportCerthashes: [],
+          securityProtocols: [],
+          transcriptSig: new Uint8Array(0),
           ...this.extensions
-        }
+        },
+        transcriptBinding: this.transcriptBinding
       }, options)
       this.metrics?.xxHandshakeSuccesses.increment()
     } catch (e: unknown) {
@@ -223,8 +260,11 @@ export class Noise implements INoiseConnection {
         extensions: {
           streamMuxers,
           webtransportCerthashes: [],
+          securityProtocols: [],
+          transcriptSig: new Uint8Array(0),
           ...this.extensions
-        }
+        },
+        transcriptBinding: this.transcriptBinding
       }, options)
       this.metrics?.xxHandshakeSuccesses.increment()
     } catch (e: unknown) {
