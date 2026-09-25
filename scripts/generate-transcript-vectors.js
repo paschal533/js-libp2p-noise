@@ -23,6 +23,7 @@ import { dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import { generateKeyPairFromSeed } from '@libp2p/crypto/keys'
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
+import { NOISE_HFS_IDENTITY_BOUND_PROTOCOL_ID, NOISE_HFS_PROTOCOL_ID } from '../dist/src/noise-hfs.js'
 import { NoiseHandshakePayload } from '../dist/src/proto/payload.js'
 import { canonicalProtocols, transcriptSignaturePayload, TRANSCRIPT_SIG_PREFIX } from '../dist/src/transcript-binding.js'
 import { createHandshakePayload, getSignaturePayload } from '../dist/src/utils.js'
@@ -95,6 +96,14 @@ const out = {
   protobuf_field_numbers: {
     'NoiseExtensions.security_protocols': 4,
     'NoiseExtensions.transcript_sig': 5
+  },
+  // The identity variant moves the protocol identifier, so the two constants
+  // now live in every implementation. A typo in one of them does not fail any
+  // single implementation's tests: it surfaces in the field as two peers with
+  // no protocol in common. Recording them here makes that a test failure.
+  protocol_ids: {
+    hybrid: NOISE_HFS_PROTOCOL_ID,
+    hybrid_identity_bound: NOISE_HFS_IDENTITY_BOUND_PROTOCOL_ID
   },
   vectors
 }

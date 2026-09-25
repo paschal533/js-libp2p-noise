@@ -20,6 +20,7 @@ import { generateKeyPairFromSeed } from '@libp2p/crypto/keys'
 import { expect } from 'aegir/chai'
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string'
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
+import { NOISE_HFS_IDENTITY_BOUND_PROTOCOL_ID, NOISE_HFS_PROTOCOL_ID } from '../src/noise-hfs.js'
 import { NoiseHandshakePayload } from '../src/proto/payload.js'
 import { canonicalProtocols, transcriptSignaturePayload, TRANSCRIPT_SIG_PREFIX } from '../src/transcript-binding.js'
 import { createHandshakePayload, getSignaturePayload } from '../src/utils.js'
@@ -41,6 +42,7 @@ interface VectorFile {
   payload_hash: string
   transcript_sig_prefix: string
   protobuf_field_numbers: Record<string, number>
+  protocol_ids: Record<string, string>
   vectors: Vector[]
 }
 
@@ -74,6 +76,15 @@ describe('transcript binding vectors', () => {
 
   it('derives the recorded identity key from the recorded seed', async () => {
     expect(hex((await identityKey()).publicKey.raw)).to.equal(file.identity_public_key)
+  })
+
+  it('records the protocol identifiers actually in use', () => {
+    // These constants are duplicated in every implementation. A typo in one
+    // does not fail that implementation's own tests; it shows up in the field
+    // as two peers with no protocol in common.
+    expect(file.protocol_ids.hybrid).to.equal(NOISE_HFS_PROTOCOL_ID)
+    expect(file.protocol_ids.hybrid_identity_bound).to.equal(NOISE_HFS_IDENTITY_BOUND_PROTOCOL_ID)
+    expect(file.protocol_ids.hybrid).to.not.equal(file.protocol_ids.hybrid_identity_bound)
   })
 
   it('records the signature prefix actually in use', () => {
