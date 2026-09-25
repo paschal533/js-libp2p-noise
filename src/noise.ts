@@ -92,6 +92,22 @@ export class Noise implements INoiseConnection {
       this.staticKey = _crypto.generateX25519KeyPair()
     }
     this.prologue = prologueBytes ?? uint8ArrayAlloc(0)
+
+    // Refused here rather than discovered as an outage. The identity variant
+    // widens what identity_sig covers, and /noise is a protocol identifier
+    // every libp2p implementation already answers to, so a peer using it would
+    // negotiate /noise successfully and then fail signature verification
+    // against every peer that does not, in any mode. It is available on the
+    // hybrid encrypter, which carries a separate identifier for it.
+    if (transcriptBinding?.variant === 'identity' && transcriptBinding.mode !== 'off') {
+      throw new Error(
+        'transcriptBinding variant "identity" is not available on /noise, because it ' +
+        'changes what identity_sig covers and /noise cannot carry a second, ' +
+        'incompatible meaning. Use "extension" here, which older peers ignore, or the ' +
+        'identity variant on noiseHFS, which advertises its own protocol identifier.'
+      )
+    }
+
     this.transcriptBinding = toTranscriptBindingConfig(
       transcriptBinding,
       this.protocol,

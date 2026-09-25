@@ -92,8 +92,24 @@ export interface NoiseHFSInit {
   transcriptBinding?: TranscriptBindingInit
 }
 
+/**
+ * The libp2p protocol identifier for this suite.
+ */
+export const NOISE_HFS_PROTOCOL_ID = '/noise-mlkem768-hfs/0.2.0'
+
+/**
+ * The identifier used when the handshake is bound with the `identity` variant.
+ *
+ * That variant widens what `identity_sig` covers, so a peer running it cannot
+ * complete a handshake with one that does not. It is a different wire protocol
+ * and carries a different identifier rather than hiding behind a flag on the
+ * one above, so that multistream-select keeps the two apart instead of letting
+ * them negotiate and then fail signature verification.
+ */
+export const NOISE_HFS_IDENTITY_BOUND_PROTOCOL_ID = '/noise-mlkem768-hfs/0.3.0'
+
 export class NoiseHFS implements INoiseConnection {
-  public protocol = '/noise-mlkem768-hfs/0.2.0'
+  public protocol = NOISE_HFS_PROTOCOL_ID
   public crypto: ICrypto
 
   private readonly prologue: Uint8Array
@@ -126,6 +142,13 @@ export class NoiseHFS implements INoiseConnection {
       this.staticKey = _crypto.generateX25519KeyPair()
     }
     this.prologue = prologueBytes ?? uint8ArrayAlloc(0)
+
+    // Set before the binding config is built, because that call checks
+    // securityProtocols against the identifier this instance advertises.
+    if (transcriptBinding?.variant === 'identity' && transcriptBinding.mode !== 'off') {
+      this.protocol = NOISE_HFS_IDENTITY_BOUND_PROTOCOL_ID
+    }
+
     this.transcriptBinding = toTranscriptBindingConfig(
       transcriptBinding,
       this.protocol,

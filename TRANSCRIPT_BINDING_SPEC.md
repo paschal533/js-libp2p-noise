@@ -111,6 +111,40 @@ Properties: one signature instead of two and a smaller payload, but every libp2p
 peer verifies `identity_sig`, so this cannot ship incrementally. It would
 require a coordinated change to `/noise` itself, or a new protocol identifier.
 
+## Where each variant is deployed
+
+The two variants are not competing answers to one question. They solve
+different halves, so each is deployed where it fits and neither is offered
+where it cannot work.
+
+`extension` is the only one that can ship incrementally, so it is available on
+classical `/noise`, which is where the install base is. An older peer ignores
+the unknown fields and the handshake completes.
+
+`identity` changes what `identity_sig` covers, and `/noise` is an identifier
+every libp2p implementation already answers to. A peer using it under that
+identifier would negotiate `/noise` successfully and then fail signature
+verification against every peer that does not, in any mode. So it is refused at
+construction on `/noise`, which turns a network-wide partition into a
+configuration error the operator sees immediately.
+
+On the hybrid suite it is available, and it moves the protocol identifier:
+
+| Identifier | Meaning |
+|------------|---------|
+| `/noise-mlkem768-hfs/0.2.0` | binding off, or the extension variant |
+| `/noise-mlkem768-hfs/0.3.0` | the identity variant |
+
+The identifier is what keeps the two apart. Since a peer binding with the
+identity variant verifies a different message, it must not answer to the
+identifier used by peers that do not, or multistream-select would pair them and
+the handshake would then fail on a signature. Letting negotiation separate them
+is the difference between "no common protocol" and a confusing crypto error.
+
+`0.3.0` is derived from the `0.2.0` this implementation ships. The base
+identifier is still open in libp2p/specs#727, and this follows whatever that
+settles on.
+
 ## Is the extra signature redundant?
 
 Worth asking, because the answer nearly changed the design. The handshake
@@ -297,6 +331,7 @@ implementation already uses would break its wire format for no gain.
 | Honest connections unaffected by the defence | Met, `baseline-tap-defended` still negotiates hybrid |
 | The existing suites still pass with the flag off | Met, 195 TypeScript and 412 Python |
 | The added cost is measured, not estimated | Met, see above |
+| Extension on `/noise`, identity behind its own identifier | Met, and the wrong pairing is refused at construction |
 | A live TypeScript-to-Python handshake with the flag on | **Not met.** The interop scripts have no flag for it yet |
 | The 48-run interop matrix re-run | **Not met**, pending the above |
 

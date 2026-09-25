@@ -76,7 +76,7 @@ import type { ComponentLogger, ConnectionEncrypter, Metrics, PeerId, PrivateKey,
 export { pureJsCrypto } from './crypto/js.js'
 export { pqcKem, pqcCrypto } from './crypto/pqc.js'
 export { XXhfsHandshakeState, NOISE_HFS_PROTOCOL_NAME } from './protocol-pqc.js'
-export { NoiseHFS, noiseHFS } from './noise-hfs.js'
+export { NoiseHFS, noiseHFS, NOISE_HFS_PROTOCOL_ID, NOISE_HFS_IDENTITY_BOUND_PROTOCOL_ID } from './noise-hfs.js'
 export type { HfsHandshakeStateInit } from './protocol-pqc.js'
 export type { ICryptoInterface } from './crypto.js'
 export type { IKem, KemKeyPair, KemEncapsulateResult } from './kem.js'
