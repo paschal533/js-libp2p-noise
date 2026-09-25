@@ -5,13 +5,67 @@
  */
 import { defaultLogger } from '@libp2p/logger'
 import { AbstractMultiaddrConnection } from '@libp2p/utils'
-import { NoiseHFS } from '../dist/src/noise-hfs.js'
+import { NoiseHFS, NOISE_HFS_PROTOCOL_ID, NOISE_HFS_IDENTITY_BOUND_PROTOCOL_ID } from '../dist/src/noise-hfs.js'
 
 export const IMPL = 'JS'
 export const GREETING_PREFIX = 'hello from '
 
-export function createNoiseHFS (privateKey, peerId) {
-  return new NoiseHFS({ privateKey, peerId, logger: defaultLogger(), upgrader: { getStreamMuxers: () => new Map() } })
+// Transcript-bound negotiation for the harnesses. Both sides must offer the
+// same list, because the check compares what one peer says it offered against
+// what the other concluded; a disagreement between the harnesses would fire the
+// check and look exactly like a detected downgrade. The other implementations'
+// harnesses have to match these lists, so they are written out rather than
+// derived.
+export const BINDING_MODES = ['off', 'extension', 'identity']
+
+const CLASSICAL = '/noise'
+
+// A protocol neither side implements, used to force the check to fire. Both
+// peers claim to prefer it, so each concludes the other should have negotiated
+// it, which is the state a stripped proposal leaves behind. With this on, a run
+// that succeeds is a run where the check did not work.
+export const PHANTOM_PREFERRED = '/noise-interop-phantom/1.0.0'
+
+export function parseBindingMode (argv) {
+  const i = argv.indexOf('--transcript-binding')
+  if (i < 0) return 'off'
+  const mode = argv[i + 1]
+  if (!BINDING_MODES.includes(mode)) {
+    throw new Error(`--transcript-binding must be one of ${BINDING_MODES.join(', ')}, got ${mode}`)
+  }
+  return mode
+}
+
+export function parseSimulateDowngrade (argv) {
+  return argv.includes('--simulate-downgrade')
+}
+
+export function protocolIdForMode (mode) {
+  return mode === 'identity' ? NOISE_HFS_IDENTITY_BOUND_PROTOCOL_ID : NOISE_HFS_PROTOCOL_ID
+}
+
+function bindingForMode (mode, simulateDowngrade) {
+  if (mode === 'off') return undefined
+
+  const actual = protocolIdForMode(mode)
+  const securityProtocols = [actual, CLASSICAL]
+  if (simulateDowngrade) securityProtocols.unshift(PHANTOM_PREFERRED)
+
+  return { mode: 'enforce', variant: mode === 'identity' ? 'identity' : 'extension', securityProtocols }
+}
+
+export function createNoiseHFS (privateKey, peerId, bindingMode = 'off', simulateDowngrade = false) {
+  // NoiseHFS takes (components, init). transcriptBinding belongs in init; put
+  // it in components and it is silently ignored, which makes a run that
+  // exercises nothing look like a pass.
+  return new NoiseHFS({
+    privateKey,
+    peerId,
+    logger: defaultLogger(),
+    upgrader: { getStreamMuxers: () => new Map() }
+  }, {
+    transcriptBinding: bindingForMode(bindingMode, simulateDowngrade)
+  })
 }
 
 export class TCPSocketConnection extends AbstractMultiaddrConnection {

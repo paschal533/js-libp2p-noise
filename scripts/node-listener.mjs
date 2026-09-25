@@ -11,13 +11,17 @@ import { defaultLogger } from '@libp2p/logger'
 import { peerIdFromPrivateKey } from '@libp2p/peer-id'
 import { ipPortToMultiaddr } from '@libp2p/utils'
 import { multiaddr } from '@multiformats/multiaddr'
-import { TCPSocketConnection, parsePort, createNoiseHFS, sendGreeting, readGreeting, fail, exitAfterFlush } from './interop-io.mjs'
+import { TCPSocketConnection, parsePort, createNoiseHFS, sendGreeting, readGreeting, fail, exitAfterFlush, parseBindingMode, parseSimulateDowngrade, protocolIdForMode } from './interop-io.mjs'
 
 async function main () {
-  const PORT = parsePort(process.argv.slice(2), 8000)
+  const ARGV = process.argv.slice(2)
+  const PORT = parsePort(ARGV, 8000)
+  const BINDING_MODE = parseBindingMode(ARGV)
+  const SIMULATE_DOWNGRADE = parseSimulateDowngrade(ARGV)
+  console.log(`BINDING ${BINDING_MODE} ${protocolIdForMode(BINDING_MODE)}${SIMULATE_DOWNGRADE ? ' SIMULATE_DOWNGRADE' : ''}`)
   const privateKey = await generateKeyPair('Ed25519')
   const peerId = peerIdFromPrivateKey(privateKey)
-  const noiseHfs = createNoiseHFS(privateKey, peerId)
+  const noiseHfs = createNoiseHFS(privateKey, peerId, BINDING_MODE, SIMULATE_DOWNGRADE)
   console.log(`LOCAL ${peerId}`)
 
   const server = net.createServer()
